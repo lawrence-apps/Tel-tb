@@ -33,12 +33,11 @@ class MainActivity : BaseActivity() {
         recent.adapter = adapter
         recent.itemAnimator = null
 
-        val tiles = listOf(R.id.tileVideos, R.id.tileMusic, R.id.tilePhotos, R.id.tileResume, R.id.tileTV)
+        val tiles = listOf(R.id.tileVideos, R.id.tileMusic, R.id.tilePhotos, R.id.tileTV)
         tiles.forEach { val t = findViewById<View>(it); t.findViewWithTag<View>("clip").clipToOutline = true; Focus.grow(t, 1.05f) }
         findViewById<View>(R.id.tileVideos).setOnClickListener { Nav.browse(this, "videos") }
         findViewById<View>(R.id.tileMusic).setOnClickListener { startActivity(Intent(this, MusicActivity::class.java)) }
         findViewById<View>(R.id.tilePhotos).setOnClickListener { Nav.browse(this, "photos") }
-        findViewById<View>(R.id.tileResume).setOnClickListener { Nav.browse(this, "resume") }
         findViewById<View>(R.id.tileTV).setOnClickListener { startActivity(Intent(this, LiveTvActivity::class.java)) }
         findViewById<View>(R.id.chipSearch).setOnClickListener { Nav.browse(this, "search") }
         findViewById<View>(R.id.chipFolders).setOnClickListener { Nav.browse(this, "folders") }
@@ -75,8 +74,6 @@ class MainActivity : BaseActivity() {
         findViewById<TextView>(R.id.nVideos).text = "${Fmt.count(nv)} files" + lib.totalSize(Kind.VIDEO).let { if (it > 0) " · ${Fmt.size(it)}" else "" }
         findViewById<TextView>(R.id.nMusic).text = "${Fmt.count(na)} gaane"
         findViewById<TextView>(R.id.nPhotos).text = "${Fmt.count(np)} photos"
-        val res = app.prefs.resumeIds().count { lib.get(it)?.kind == Kind.VIDEO }
-        findViewById<TextView>(R.id.nResume).text = if (res == 0) "kuch adhoora nahi" else "$res adhoore"
         val ntv = app.prefs.tvCount
         findViewById<TextView>(R.id.nTV).text = if (ntv > 0) "${Fmt.count(ntv)} channels live" else "Live darshan"
         val items = lib.items().filter { it.kind != Kind.SUB }.take(8)

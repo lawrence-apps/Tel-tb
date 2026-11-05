@@ -7,7 +7,7 @@
             <ImageView android:layout_width="14dp" android:layout_height="14dp" android:layout_gravity="center" android:src="@drawable/ic_play"/>
         </FrameLayout>
         <TextView style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="7dp"
-            android:text="RG TV" android:textSize="15sp"/>
+            android:text="RC TV" android:textSize="15sp"/>
         <Space android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
         <TextView android:id="@+id/statusDot" style="@style/T" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="●" android:textSize="11sp" android:textColor="#FF30D158"/>
         <TextView android:id="@+id/status" style="@style/T.Sub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="5dp" android:textSize="11sp" android:maxLines="1"/>
@@ -57,21 +57,6 @@
             <Space android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1"/>
             <TextView style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Photos" android:textSize="24sp"/>
             <TextView android:id="@+id/nPhotos" style="@style/T" android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:layout_marginTop="3dp" android:textSize="12sp" android:textColor="#D9FFFFFF" android:maxLines="1"/>
-        </LinearLayout>
-    </FrameLayout>
-    </FrameLayout>
-
-    <FrameLayout android:id="@+id/tileResume" android:layout_width="0dp" android:layout_height="165dp" android:layout_weight="1"
-        android:layout_marginStart="9dp" android:layout_marginEnd="9dp" android:foreground="@drawable/focus_ring" android:focusable="true" android:clickable="true">
-      <FrameLayout android:tag="clip" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/tile_orange" android:duplicateParentState="true">
-        <View android:layout_width="120dp" android:layout_height="120dp" android:layout_gravity="top|end"
-            android:layout_marginTop="-30dp" android:layout_marginEnd="-30dp" android:background="@drawable/circle_deco"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="17dp">
-            <ImageView android:layout_width="44dp" android:layout_height="44dp" android:src="@drawable/ic_resume"/>
-            <Space android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1"/>
-            <TextView style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Resume" android:textSize="24sp"/>
-            <TextView android:id="@+id/nResume" style="@style/T" android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_marginTop="3dp" android:textSize="12sp" android:textColor="#D9FFFFFF" android:maxLines="1"/>
         </LinearLayout>
     </FrameLayout>

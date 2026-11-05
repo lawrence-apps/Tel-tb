@@ -1,5 +1,5 @@
 <resources>
-<style name="Theme.RGTV" parent="android:Theme.Material.NoActionBar.Fullscreen">
+<style name="Theme.RCTV" parent="android:Theme.Material.NoActionBar.Fullscreen">
   <item name="android:windowBackground">@drawable/bg_app</item>
   <item name="android:colorAccent">@color/acc</item>
   <item name="android:colorPrimary">@color/acc</item>
