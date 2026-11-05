@@ -8,6 +8,9 @@
                 android:scaleType="fitCenter" android:padding="12dp"/>
             <TextView android:id="@+id/liveBadge" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:layout_gravity="top|start" android:layout_margin="6dp" android:text="● LIVE" android:textColor="#FF30D158" android:textSize="9sp"/>
+            <TextView android:id="@+id/favBadge" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="top|end" android:layout_margin="5dp" android:text="★" android:textColor="#FFFFD54A" android:textSize="14sp"
+                android:shadowColor="#CC000000" android:shadowRadius="4" android:visibility="gone"/>
         </FrameLayout>
         <TextView android:id="@+id/name" style="@style/T.B" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
             android:ellipsize="end" android:maxLines="1" android:textSize="12.5sp"/>

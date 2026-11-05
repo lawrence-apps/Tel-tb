@@ -1,6 +1,7 @@
 package com.rgbotz.tv
 
 import android.content.Context
+import org.json.JSONArray
 
 class Prefs(ctx: Context) {
     private val sp = ctx.getSharedPreferences("rgtv", Context.MODE_PRIVATE)
@@ -58,6 +59,13 @@ class Prefs(ctx: Context) {
     var serverUrl: String
         get() = sp.getString("serverUrl", "") ?: ""
         set(v) { sp.edit().putString("serverUrl", v.trim()).apply() }
+    /** Live TV favourites: lowercase channel names ka JSON array — server badalne par bhi yaad rehta hai */
+    var tvFavs: Set<String>
+        get() = try {
+            val a = JSONArray(sp.getString("tvFavs", "[]") ?: "[]")
+            (0 until a.length()).map { a.optString(it).lowercase().trim() }.filter { it.isNotEmpty() }.toSet()
+        } catch (_: Throwable) { emptySet() }
+        set(v) { try { sp.edit().putString("tvFavs", JSONArray(v.sorted().toList()).toString()).apply() } catch (_: Throwable) {} }
 
     fun pos(id: Long): Long = sp.getLong("pos_$id", 0)
     fun dur(id: Long): Long = sp.getLong("dur_$id", 0)

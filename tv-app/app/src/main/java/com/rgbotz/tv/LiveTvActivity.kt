@@ -214,6 +214,7 @@ object LiveLogo {
 
 /** "TV" tile screen: server switch + category chips + channel grid + search, sab D-pad se chalta hai. */
 class LiveTvActivity : BaseActivity() {
+    companion object { const val FAV_CAT = "★ Favourites" }
     private lateinit var grid: RecyclerView
     private lateinit var sub: TextView
     private lateinit var search: EditText
@@ -242,7 +243,7 @@ class LiveTvActivity : BaseActivity() {
         btnRetry = findViewById(R.id.btnRetry)
         grid.itemAnimator = null
         grid.layoutManager = GridLayoutManager(this, 5)
-        cards = ChannelAdapter { list, i -> open(list, i) }
+        cards = ChannelAdapter({ list, i -> open(list, i) }, { App.inst.prefs.tvFavs }, { ch -> toggleFav(ch) })
         grid.adapter = cards
         btnRetry.setOnClickListener { reload() }
         search.addTextChangedListener(object : TextWatcher {
@@ -344,8 +345,9 @@ class LiveTvActivity : BaseActivity() {
         val sorted = cats.sortedBy { c -> order.indexOf(c).takeIf { it >= 0 } ?: (100 + c[0].code) }
         chipsRow.removeAllViews()
         val saved = App.inst.prefs.tvCategory
-        cat = if (saved == "All" || sorted.contains(saved)) saved else "All"
-        for (c in listOf("All") + sorted) {
+        cat = if (saved == FAV_CAT || saved == "All" || sorted.contains(saved)) saved else "All"
+        // ★ Favourites sabse pehle — koi bhi channel par OK dabake rakho, favourite ban jayega
+        for (c in listOf(FAV_CAT, "All") + sorted) {
             val chip = TextView(this)
             chip.text = c
             chip.textSize = 12f
@@ -358,37 +360,56 @@ class LiveTvActivity : BaseActivity() {
             chip.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(10) }
             Focus.grow(chip, 1.06f)
             chip.setOnClickListener { selectCat(c) }
-            chip.setTextColor(if (c == cat) 0xFFFF4FA3.toInt() else 0xFFFFFFFF.toInt())
+            chip.setTextColor(if (c == cat) chipColor(c) else 0xFFFFFFFF.toInt())
             chipsRow.addView(chip)
         }
     }
+
+    private fun chipColor(c: String) = if (c == FAV_CAT) 0xFFFFD54A.toInt() else 0xFFFF4FA3.toInt()
 
     private fun selectCat(c: String) {
         cat = c
         App.inst.prefs.tvCategory = c
         for (i in 0 until chipsRow.childCount) {
             val chip = chipsRow.getChildAt(i) as TextView
-            chip.setTextColor(if (chip.text.toString() == c) 0xFFFF4FA3.toInt() else 0xFFFFFFFF.toInt())
+            chip.setTextColor(if (chip.text.toString() == c) chipColor(c) else 0xFFFFFFFF.toInt())
         }
         applyFilter()
+    }
+
+    private fun isFav(ch: Channel) = App.inst.prefs.tvFavs.contains(ch.name.lowercase().trim())
+
+    /** Channel card par long-press (OK dabake rakho) — favourite on/off, favourites view me turant refresh */
+    private fun toggleFav(ch: Channel) {
+        val key = ch.name.lowercase().trim()
+        val favs = App.inst.prefs.tvFavs.toMutableSet()
+        val added = if (favs.contains(key)) { favs.remove(key); false } else { favs.add(key); true }
+        App.inst.prefs.tvFavs = favs
+        android.widget.Toast.makeText(this,
+            if (added) "★ ${ch.name} — favourites me add ho gaya" else "${ch.name} — favourites se hata diya",
+            android.widget.Toast.LENGTH_SHORT).show()
+        if (cat == FAV_CAT) applyFilter() else cards?.notifyDataSetChanged()
     }
 
     private fun applyFilter() {
         val q = search.text.toString().trim().lowercase()
         val list = when {
             q.isNotEmpty() -> all.filter { it.name.lowercase().contains(q) }
+            cat == FAV_CAT -> all.filter { isFav(it) }
             cat == "All" -> all
             else -> all.filter { it.category == cat }
         }
         sub.text = when {
             all.isEmpty() -> "Channels load ho rahe hain…"
             q.isNotEmpty() -> "${Fmt.count(list.size)} mile"
+            cat == FAV_CAT -> "★ ${Fmt.count(list.size)} favourite channels · (toggle: channel par OK dabake rakho)"
             cat != "All" -> "${Fmt.count(list.size)} channels · $cat · ${Channels.SERVERS[cur].name}"
             else -> "${Fmt.count(list.size)} channels · ${Channels.SERVERS[cur].name}"
         }
         cards?.set(list)
         if (list.isEmpty() && all.isNotEmpty()) {
-            empty.text = "Is category / search me kuch nahi mila"
+            empty.text = if (cat == FAV_CAT) "Koi favourite nahi abhi — kisi channel par OK dabake rakho, ★ lag jayega"
+                         else "Is category / search me kuch nahi mila"
             btnRetry.visibility = View.GONE
             emptyBox.visibility = View.VISIBLE
         } else if (loading.visibility != View.VISIBLE) {
@@ -407,13 +428,18 @@ class LiveTvActivity : BaseActivity() {
     }
 }
 
-class ChannelAdapter(private val click: (List<Channel>, Int) -> Unit) : RecyclerView.Adapter<ChannelAdapter.VH>() {
+class ChannelAdapter(
+    private val click: (List<Channel>, Int) -> Unit,
+    private val favs: () -> Set<String>,
+    private val toggle: (Channel) -> Unit,
+) : RecyclerView.Adapter<ChannelAdapter.VH>() {
     private var items: List<Channel> = emptyList()
     fun set(list: List<Channel>) { items = list; notifyDataSetChanged() }
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val logo: ImageView = v.findViewById(R.id.logo)
         val name: TextView = v.findViewById(R.id.name)
         val cat: TextView = v.findViewById(R.id.cat)
+        val fav: View = v.findViewById(R.id.favBadge)
     }
     override fun onCreateViewHolder(p: ViewGroup, t: Int): VH {
         val v = LayoutInflater.from(p.context).inflate(R.layout.item_channel, p, false)
@@ -427,6 +453,8 @@ class ChannelAdapter(private val click: (List<Channel>, Int) -> Unit) : Recycler
         LiveLogo.load(h.logo, ch.logo)
         h.name.text = ch.name
         h.cat.text = ch.category
+        h.fav.visibility = if (favs().contains(ch.name.lowercase().trim())) View.VISIBLE else View.GONE
         h.itemView.setOnClickListener { _ -> click(items, i) }
+        h.itemView.setOnLongClickListener { toggle(ch); true }
     }
 }

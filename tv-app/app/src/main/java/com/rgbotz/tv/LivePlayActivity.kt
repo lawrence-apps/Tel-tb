@@ -50,6 +50,7 @@ class LivePlayActivity : BaseActivity() {
     private val h = Handler(Looper.getMainLooper())
     private var playingBackup = false
     private var freshRetried = false
+    private var crossRetried = false
 
     companion object {
         @Volatile var queue: List<Channel> = emptyList()
@@ -74,7 +75,7 @@ class LivePlayActivity : BaseActivity() {
         findViewById<View>(R.id.btnPlay).setOnClickListener { togglePlay() }
         findViewById<View>(R.id.btnPrev).setOnClickListener { zap(-1) }
         findViewById<View>(R.id.btnNext).setOnClickListener { zap(1) }
-        findViewById<View>(R.id.btnRetry).setOnClickListener { errorPanel.visibility = View.GONE; freshRetry() }
+        findViewById<View>(R.id.btnRetry).setOnClickListener { errorPanel.visibility = View.GONE; start(ch) }
         findViewById<View>(R.id.btnChannels).setOnClickListener { finish() }
         start(queue[index])
     }
@@ -83,6 +84,7 @@ class LivePlayActivity : BaseActivity() {
         ch = c
         playingBackup = false
         freshRetried = false
+        crossRetried = false
         play(c.url)
     }
 
@@ -182,6 +184,9 @@ class LivePlayActivity : BaseActivity() {
                 play(ch.backup)
             } else if (!freshRetried) {
                 freshRetry()
+            } else if (!crossRetried) {
+                // 404 / mara hua link: wahi channel DOOSRE server par dhoondo
+                crossServerRetry()
             } else {
                 val msg = error.cause?.message ?: error.errorCodeName
                 loading.visibility = View.GONE
@@ -215,19 +220,69 @@ class LivePlayActivity : BaseActivity() {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (fresh != null) {
                     ch = fresh
+                    playingBackup = false // fresh ka backup bhi try ho sake
                     val q = queue.toMutableList()
                     if (index in q.indices) q[index] = fresh
                     queue = q
                     play(fresh.url)
                 } else {
-                    loading.visibility = View.GONE
-                    errorPanel.visibility = View.VISIBLE
-                    errorText.text = "${ch.name} nahi chal raha\nChannel list me nahi mila — dobara try karo"
-                    findViewById<View>(R.id.btnRetry).requestFocus()
-                    Report.send("live_${ch.id.ifEmpty { ch.name }}", "Live TV nahi chala: ${ch.name}", "fresh fetch me bhi nahi mila")
+                    // isi server me hi nahi mila — seedha doosre servers dekho
+                    crossServerRetry()
                 }
             }
         }
+    }
+
+    /**
+     * 404/dead link ka pakka ilaaj: isi channel ko baaki servers me naam se dhoondo
+     * (cache pehle, warna live fetch) aur wahan ke URL se chalao.
+     */
+    private fun crossServerRetry() {
+        crossRetried = true
+        errorPanel.visibility = View.GONE
+        controls.visibility = View.GONE
+        loadingText.text = "${ch.name} — dusre server me dhoond rahe hain…"
+        loading.visibility = View.VISIBLE
+        App.inst.io.launch {
+            val cur = App.inst.prefs.tvServer.coerceIn(0, Channels.SERVERS.lastIndex)
+            var found: Channel? = null
+            for (i in Channels.SERVERS.indices) {
+                if (i == cur) continue
+                found = try {
+                    val cached = Channels.loadCache(app, i)
+                    val list = if (cached.isNotEmpty()) cached else Channels.fetch(Channels.SERVERS[i])
+                    list.firstOrNull { f -> sameChannel(f, ch) }
+                } catch (_: Throwable) { null }
+                if (found != null) break
+            }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val f = found
+                if (f != null) {
+                    ch = f
+                    playingBackup = false   // naye server ka backup bhi chalega
+                    freshRetried = true     // wapas purane server ke fresh link pe nahi jana
+                    val q = queue.toMutableList()
+                    if (index in q.indices) q[index] = f
+                    queue = q
+                    play(f.url)
+                } else {
+                    loading.visibility = View.GONE
+                    errorPanel.visibility = View.VISIBLE
+                    errorText.text = "${ch.name} nahi chal raha\nSab servers me try kar liya — thodi der baad dobara"
+                    findViewById<View>(R.id.btnRetry).requestFocus()
+                    Report.send("live_${ch.id.ifEmpty { ch.name }}", "Live TV nahi chala: ${ch.name}", "backup + fresh + dusre servers — sab fail")
+                }
+            }
+        }
+    }
+
+    /** Same channel ka strict match: id barabar, ya naam ke beech ke spaces/-/_ hata ke barabar. */
+    private fun sameChannel(a: Channel, b: Channel): Boolean {
+        if (a.id.isNotEmpty() && a.id == b.id) return true
+        fun norm(s: String) = s.lowercase().replace(Regex("[^a-z0-9]"), "")
+        val na = norm(a.name); val nb = norm(b.name)
+        return na.isNotEmpty() && na == nb
     }
 
     // ---------- controls ----------
