@@ -73,7 +73,7 @@ class Item(
     }
 }
 
-/** An app update posted in the channel: document with caption "RGTV-UPDATE <versionCode> <versionName>". */
+/** An app update posted in the channel: document with caption "(TGTV-UPDATE ya RGTV-UPDATE) <versionCode> <versionName>". */
 class UpdateInfo(val msgId: Long, val versionCode: Int, val versionName: String, val size: Long)
 
 object Parse {

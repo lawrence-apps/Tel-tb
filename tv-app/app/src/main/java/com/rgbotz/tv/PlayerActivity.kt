@@ -150,8 +150,10 @@ class PlayerActivity : BaseActivity() {
             override fun onPlayerError(error: PlaybackException) {
                 loading.visibility = View.GONE
                 errorPanel.visibility = View.VISIBLE
-                findViewById<TextView>(R.id.errorText).text = "Ye video nahi chal paya\n" + (error.cause?.message ?: error.errorCodeName)
+                val msg = error.cause?.message ?: error.errorCodeName
+                findViewById<TextView>(R.id.errorText).text = "Ye video nahi chal paya\n" + msg
                 findViewById<View>(R.id.btnRetry).requestFocus()
+                Report.send("play_${item.id}", "Video nahi chala: ${item.title}", msg)
             }
             override fun onTracksChanged(tracks: Tracks) {
                 if (firstTracks && tracks.groups.isNotEmpty()) { firstTracks = false; updateMeta(tracks) }
@@ -165,18 +167,7 @@ class PlayerActivity : BaseActivity() {
         firstTracks = true
         findViewById<TextView>(R.id.title).text = it.title
         findViewById<TextView>(R.id.meta).text = (listOf(it.quality, Fmt.size(it.size), Fmt.dur(it.duration.toLong())).filter { s -> s.isNotEmpty() } +
-                if (it.oversize) listOf("2GB+ (bot limit)") else emptyList()).joinToString(" · ")
-        if (it.oversize) {
-            // Telegram bots 2GB se badi file download nahi kar sakte — cryptic player error ki jagah seedha message
-            player?.release(); player = null
-            loading.visibility = View.GONE
-            errorPanel.visibility = View.VISIBLE
-            findViewById<TextView>(R.id.errorText).text =
-                "Ye file 2GB se badi hai\nTelegram bots 2GB tak hi files nikaal sakte hain, isliye ye video TV par nahi chalegi."
-            findViewById<View>(R.id.btnRetry).visibility = View.GONE
-            h.removeCallbacks(tick); h.removeCallbacks(saver)
-            return
-        }
+                if (it.oversize) listOf("2GB+") else emptyList()).joinToString(" · ")
         findViewById<View>(R.id.btnRetry).visibility = View.VISIBLE
         player?.release()
         if (mainFileId != 0) app.streams.release(mainFileId)

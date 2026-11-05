@@ -105,7 +105,7 @@ def load_index():
 
 SUB_EXT = (".srt", ".vtt", ".ass", ".ssa")
 PHOTO_EXT = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif")
-UPD = re.compile(r"^TGTV-UPDATE\s+(\d+)\s*(\S*)")
+UPD = re.compile(r"^(?:TGTV|RGTV)-UPDATE\s+(\d+)\s*(\S*)")
 
 
 def kind(m):

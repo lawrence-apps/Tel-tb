@@ -18,10 +18,16 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.drm.DefaultDrmSessionManager
+import androidx.media3.exoplayer.drm.ExoMediaDrm
+import androidx.media3.exoplayer.drm.FrameworkMediaDrm
+import androidx.media3.exoplayer.drm.MediaDrmCallback
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.UUID
 
 /**
  * Live channel player: HLS (.m3u8) aur DASH (.mpd) dono, channel ke Cookie
@@ -43,6 +49,7 @@ class LivePlayActivity : BaseActivity() {
     private lateinit var btnPlay: ImageView
     private val h = Handler(Looper.getMainLooper())
     private var playingBackup = false
+    private var freshRetried = false
 
     companion object {
         @Volatile var queue: List<Channel> = emptyList()
@@ -67,7 +74,7 @@ class LivePlayActivity : BaseActivity() {
         findViewById<View>(R.id.btnPlay).setOnClickListener { togglePlay() }
         findViewById<View>(R.id.btnPrev).setOnClickListener { zap(-1) }
         findViewById<View>(R.id.btnNext).setOnClickListener { zap(1) }
-        findViewById<View>(R.id.btnRetry).setOnClickListener { errorPanel.visibility = View.GONE; start(ch) }
+        findViewById<View>(R.id.btnRetry).setOnClickListener { errorPanel.visibility = View.GONE; freshRetry() }
         findViewById<View>(R.id.btnChannels).setOnClickListener { finish() }
         start(queue[index])
     }
@@ -75,6 +82,7 @@ class LivePlayActivity : BaseActivity() {
     private fun start(c: Channel) {
         ch = c
         playingBackup = false
+        freshRetried = false
         play(c.url)
     }
 
@@ -97,15 +105,25 @@ class LivePlayActivity : BaseActivity() {
             .setReadTimeoutMs(12_000)
             .setUserAgent(Channels.UA)
         if (c.headers.isNotEmpty()) http.setDefaultRequestProperties(c.headers)
+        val factory = DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http))
+        val plan = if (c.license.isNotEmpty()) drmPlan(c.license) else null
+        plan?.inlineJson?.let { json ->
+            // ClearKey ki keys bina network ke inline — ExoPlayer ka default callback data: URI pe HTTP
+            // karne lagta hai aur "unknown protocol: data" error deta hai (Mi TV wala bug)
+            val drm = DefaultDrmSessionManager.Builder()
+                .setUuidAndExoMediaDrmProvider(plan.uuid, FrameworkMediaDrm.DEFAULT_PROVIDER)
+                .build(InlineClearKey(json))
+            factory.setDrmSessionManagerProvider { drm }
+        }
         val p = ExoPlayer.Builder(this, rf)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(this, http)))
+            .setMediaSourceFactory(factory)
             .build()
         player = p
         pv.player = p
         p.addListener(listener)
         val item = MediaItem.Builder()
         item.setUri(url)
-        if (c.license.isNotEmpty()) drmConfig(c.license)?.let { item.setDrmConfiguration(it) }
+        plan?.config?.let { item.setDrmConfiguration(it) }
         p.setMediaItem(item.build())
         p.prepare()
         p.playWhenReady = true
@@ -115,8 +133,10 @@ class LivePlayActivity : BaseActivity() {
         h.removeCallbacks(hide)
     }
 
-    /** `kid:key[,kid:key]` = ClearKey inline; `https://…` = Widevine license server. */
-    private fun drmConfig(license: String): MediaItem.DrmConfiguration? {
+    /** `kid:key[,kid:key]` = ClearKey inline (bina network ke); `https://…` = Widevine license server. */
+    private class DrmPlan(val uuid: UUID, val inlineJson: String?, val config: MediaItem.DrmConfiguration?)
+
+    private fun drmPlan(license: String): DrmPlan? {
         val clearKey = Regex("^([0-9a-fA-F]{32}:[0-9a-fA-F]{32})(,[0-9a-fA-F]{32}:[0-9a-fA-F]{32})*$")
         return when {
             clearKey.matches(license) -> {
@@ -127,16 +147,19 @@ class LivePlayActivity : BaseActivity() {
                         .put("kid", hexToB64(pair.substring(0, i)))
                         .put("k", hexToB64(pair.substring(i + 1))))
                 }
-                val json = JSONObject().put("type", "temporary").put("keys", keys)
-                MediaItem.DrmConfiguration.Builder(C.CLEARKEY_UUID)
-                    .setLicenseUri("data:application/json;base64," + Base64.encodeToString(json.toString().toByteArray(), Base64.NO_WRAP))
-                    .setMultiSession(false)
-                    .build()
+                val json = JSONObject().put("type", "temporary").put("keys", keys).toString()
+                DrmPlan(C.CLEARKEY_UUID, json, null)
             }
-            license.startsWith("http") ->
-                MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID).setLicenseUri(license).setMultiSession(false).build()
+            license.startsWith("http") -> DrmPlan(C.WIDEVINE_UUID, null,
+                MediaItem.DrmConfiguration.Builder(C.WIDEVINE_UUID).setLicenseUri(license).setMultiSession(false).build())
             else -> null
         }
+    }
+
+    /** ClearKey key request ka jawab khud deta hai — koi HTTP nahi (data: URI ka bug isse gaya). */
+    private class InlineClearKey(private val json: String) : MediaDrmCallback {
+        override fun executeKeyRequest(uuid: UUID, request: ExoMediaDrm.KeyRequest): ByteArray = json.toByteArray()
+        override fun executeProvisioningRequest(uuid: UUID, request: ExoMediaDrm.ProvisionRequest): ByteArray = json.toByteArray()
     }
 
     private fun hexToB64(hex: String): String {
@@ -157,12 +180,52 @@ class LivePlayActivity : BaseActivity() {
             if (!playingBackup && ch.backup.isNotEmpty()) {
                 playingBackup = true
                 play(ch.backup)
+            } else if (!freshRetried) {
+                freshRetry()
             } else {
+                val msg = error.cause?.message ?: error.errorCodeName
                 loading.visibility = View.GONE
                 controls.visibility = View.GONE
-                errorText.text = "${ch.name} nahi chal raha\n" + (error.cause?.message ?: error.errorCodeName)
+                errorText.text = "${ch.name} nahi chal raha\n" + msg
                 errorPanel.visibility = View.VISIBLE
                 findViewById<View>(R.id.btnRetry).requestFocus()
+                Report.send("live_${ch.id.ifEmpty { ch.name }}", "Live TV nahi chala: ${ch.name}", msg)
+            }
+        }
+    }
+
+    /**
+     * Purana link mar chuka (403/token expire) — server se fresh list lekar isi channel ka
+     * naya URL nikal ke ek baar aur try karte hain.
+     */
+    private fun freshRetry() {
+        freshRetried = true
+        errorPanel.visibility = View.GONE
+        controls.visibility = View.GONE
+        loadingText.text = "${ch.name} — naya link lekar try kar rahe hain…"
+        loading.visibility = View.VISIBLE
+        App.inst.io.launch {
+            val fresh = try {
+                val srv = Channels.SERVERS[App.inst.prefs.tvServer.coerceIn(0, Channels.SERVERS.lastIndex)]
+                Channels.fetch(srv).firstOrNull { f ->
+                    (ch.id.isNotEmpty() && f.id == ch.id) || f.name.equals(ch.name, ignoreCase = true)
+                }
+            } catch (_: Throwable) { null }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (fresh != null) {
+                    ch = fresh
+                    val q = queue.toMutableList()
+                    if (index in q.indices) q[index] = fresh
+                    queue = q
+                    play(fresh.url)
+                } else {
+                    loading.visibility = View.GONE
+                    errorPanel.visibility = View.VISIBLE
+                    errorText.text = "${ch.name} nahi chal raha\nChannel list me nahi mila — dobara try karo"
+                    findViewById<View>(R.id.btnRetry).requestFocus()
+                    Report.send("live_${ch.id.ifEmpty { ch.name }}", "Live TV nahi chala: ${ch.name}", "fresh fetch me bhi nahi mila")
+                }
             }
         }
     }

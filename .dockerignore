@@ -1,8 +1,0 @@
-.git
-.github
-tv-app
-server/__pycache__
-server/.env
-server/index.json
-server/tvbot*
-*.apk

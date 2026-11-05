@@ -44,7 +44,7 @@ VIDEO_EXT = (".mkv", ".mp4", ".avi", ".webm", ".ts", ".mov", ".m4v", ".flv")
 AUDIO_EXT = (".mp3", ".m4a", ".flac", ".ogg", ".opus", ".wav", ".aac")
 SUB_EXT = (".srt", ".vtt", ".ass", ".ssa")
 PHOTO_EXT = (".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif")
-UPD = re.compile(r"^TGTV-UPDATE\s+(\d+)\s*(\S*)")
+UPD = re.compile(r"^(?:TGTV|RGTV)-UPDATE\s+(\d+)\s*(\S*)")
 INDEX_FILE = HERE / "index.json"
 
 state = {"ready": False, "error": "", "scanning": False, "scanned": 0, "version": 0,

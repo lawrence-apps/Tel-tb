@@ -1,9 +1,0 @@
-# Coolify/Nixpacks ke liye — Python server (server/server.py)
-[phases.setup]
-nixPkgs = ["python311", "gcc"]
-
-[phases.install]
-cmds = ["pip install -r server/requirements.txt"]
-
-[start]
-cmd = "python server/server.py"

@@ -1,5 +1,6 @@
 package com.rgbotz.tv.core
 
+import com.rgbotz.tv.Report
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -137,6 +138,7 @@ class Library(private val td: Td) {
         scannedUpTo = o.optLong("scanned")
         chatTitle = o.optString("title")
         lastError = o.optString("channelError").ifEmpty { null }
+        lastError?.let { Report.send("scan_err", "Server scan me dikkat", it) }
         latestUpdate = o.optJSONObject("update")?.let { UpdateInfo(it.getLong("id"), it.getInt("code"), it.optString("name"), it.optLong("size")) }
         td.set(st, err.ifEmpty { null }, o.optBoolean("online", true))
         val v = o.optLong("version", 0)

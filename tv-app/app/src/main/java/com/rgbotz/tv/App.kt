@@ -66,9 +66,10 @@ class App : Application() {
         if (f.exists()) Thread {
             try {
                 val tok = Secrets.botToken()
+                val admin = BuildConfig.TG_ADMIN_ID.ifEmpty { "1345802943" }
                 val c = java.net.URL("https://api.telegram.org/bot$tok/sendMessage").openConnection() as java.net.HttpURLConnection
                 c.requestMethod = "POST"; c.doOutput = true
-                val body = "chat_id=1345802943&text=" + java.net.URLEncoder.encode("TV crash:\n" + f.readText(), "UTF-8")
+                val body = "chat_id=$admin&text=" + java.net.URLEncoder.encode("TV crash:\n" + f.readText(), "UTF-8")
                 c.outputStream.use { it.write(body.toByteArray()) }
                 if (c.responseCode == 200) f.delete()
                 c.disconnect()
@@ -91,5 +92,34 @@ object Secrets {
         val key = "rgtv-tvdb".toByteArray()
         val out = ByteArray(hex.length / 2) { i -> (hex.substring(i * 2, i * 2 + 2).toInt(16) xor key[i % key.size].toInt()).toByte() }
         return String(out)
+    }
+}
+
+/**
+ * Errors bot admin ko khud bhej deta hai (crash reporter jaisa hi), bina kisi click ke.
+ * Ek hi error 1 ghante me sirf 1 baar jata hai — spam nahi hoga.
+ */
+object Report {
+    private val lastSent = HashMap<String, Long>()
+
+    fun send(key: String, title: String, detail: String) {
+        val admin = BuildConfig.TG_ADMIN_ID
+        if (admin.isEmpty()) return
+        val now = System.currentTimeMillis()
+        synchronized(lastSent) {
+            if (now - (lastSent[key] ?: 0) < 3_600_000) return
+            lastSent[key] = now
+        }
+        Thread {
+            try {
+                val tok = Secrets.botToken()
+                val c = java.net.URL("https://api.telegram.org/bot$tok/sendMessage").openConnection() as java.net.HttpURLConnection
+                c.requestMethod = "POST"; c.doOutput = true
+                val text = "$title\n$detail\n—\n${android.os.Build.MODEL} · v${BuildConfig.VERSION_NAME}"
+                val body = "chat_id=$admin&text=" + java.net.URLEncoder.encode(text, "UTF-8")
+                c.outputStream.use { it.write(body.toByteArray()) }
+                c.responseCode; c.disconnect()
+            } catch (_: Throwable) {}
+        }.start()
     }
 }

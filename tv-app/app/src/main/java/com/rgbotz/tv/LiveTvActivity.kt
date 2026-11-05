@@ -107,10 +107,14 @@ object Channels {
             for (p in parts.drop(1)) { val i = p.indexOf('='); if (i > 0) headers[p.substring(0, i).trim().lowercase()] = p.substring(i + 1).trim() }
         }
         val cookie = o.optString("cookie").takeIf { it.isNotEmpty() && it != "null" }
-            ?: o.optJSONObject("headers")?.let { hd ->
-                hd.optString("cookie").ifEmpty { hd.optString("Cookie") }.takeIf { it.isNotEmpty() && it != "null" }
-            }
+            ?: o.optJSONObject("headers")?.let { hd -> hd.optString("cookie").ifEmpty { hd.optString("Cookie") }.takeIf { it.isNotEmpty() && it != "null" } }
         cookie?.let { headers["Cookie"] = it }
+        // top-level referer/origin + headers object ke SAARE fields (403 bahut baar missing Referer/Origin se hota hai)
+        for (f in listOf("referer", "referrer")) o.optString(f).takeIf { it.isNotEmpty() && it != "null" }?.let { headers["Referer"] = it }
+        o.optString("origin").takeIf { it.isNotEmpty() && it != "null" }?.let { headers["Origin"] = it }
+        o.optJSONObject("headers")?.let { hd ->
+            for (k in hd.keys()) hd.optString(k).takeIf { it.isNotEmpty() && it != "null" }?.let { v -> headers[k.trim().lowercase()] = v }
+        }
         val logo = o.optString("logo").takeIf { it.isNotEmpty() && it != "null" }
             ?: o.optString("channel_logo").takeIf { it.isNotEmpty() && it != "null" } ?: ""
         val backup = o.optString("url_backup").takeIf { it.isNotEmpty() && it != "null" } ?: ""
