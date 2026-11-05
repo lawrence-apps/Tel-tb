@@ -90,6 +90,7 @@ class PlayerActivity : BaseActivity() {
         resumePanel = findViewById(R.id.resumePanel)
         errorPanel = findViewById(R.id.errorPanel)
         pv.useController = false
+        pv.keepScreenOn = true  // view-level bhi — Mi TV jaise devices ke liye double safety
         pv.subtitleView?.apply {
             setStyle(CaptionStyleCompat(Color.WHITE, 0x00000000, 0x00000000, CaptionStyleCompat.EDGE_TYPE_OUTLINE, Color.BLACK, null))
             setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, when (app.prefs.subSize) { 0 -> 20f; 2 -> 32f; else -> 26f })

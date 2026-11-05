@@ -6,6 +6,7 @@ import android.os.Looper
 import android.util.Base64
 import android.view.KeyEvent
 import android.view.View
+import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.annotation.OptIn
@@ -60,6 +61,8 @@ class LivePlayActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Live TV chalte hue TV ka screensaver/screen-off na aaye — yahi flag Daydream bhi rokta hai
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_live_play)
         if (queue.isEmpty()) { finish(); return }
         index = (intent.getIntExtra("index", 0).coerceIn(0, queue.size - 1))
@@ -71,6 +74,7 @@ class LivePlayActivity : BaseActivity() {
         errorText = findViewById(R.id.errorText)
         btnPlay = findViewById(R.id.btnPlay)
         pv.useController = false
+        pv.keepScreenOn = true  // view-level bhi — Mi TV jaise devices ke liye double safety
         listOf(R.id.btnPrev, R.id.btnPlay, R.id.btnNext).forEach { Focus.grow(findViewById(it), 1.12f) }
         findViewById<View>(R.id.btnPlay).setOnClickListener { togglePlay() }
         findViewById<View>(R.id.btnPrev).setOnClickListener { zap(-1) }
