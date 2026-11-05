@@ -50,6 +50,10 @@ class Prefs(ctx: Context) {
     var tvCategory: String
         get() = sp.getString("tvCategory", "All") ?: "All"
         set(v) { sp.edit().putString("tvCategory", v).apply() }
+    /** Live TV: server switch — kaunsa server (0=JioStar, 1=+PlusTV, 2=InPlex+), agli baar wahi khule */
+    var tvServer: Int
+        get() = sp.getInt("tvServer", 0)
+        set(v) { sp.edit().putInt("tvServer", v).apply() }
 
     fun pos(id: Long): Long = sp.getLong("pos_$id", 0)
     fun dur(id: Long): Long = sp.getLong("dur_$id", 0)

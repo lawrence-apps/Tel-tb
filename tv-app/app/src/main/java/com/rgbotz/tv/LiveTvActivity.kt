@@ -41,22 +41,32 @@ class Channel(
     val license: String,
 )
 
+/** Ek live TV server: apni channel-list sources. */
+class LServer(val name: String, val sources: List<String>)
+
 /**
- * Same channel sources as the JioStar+ app: 2 workers + npoint JSON, merged and
- * deduped by name (best entry wins: HLS over DASH, extras over bare URLs).
+ * Live channel sources. 3 servers hain, TV tile me switch se badalte hain:
+ *  - JioStar (default): JioStar+ app ke 2 workers + npoint JSON
+ *  - +PlusTV: +PlusTV app ka npoint JSON (~940 channels)
+ *  - InPlex+: InPlex+ app ka npoint JSON (~937 channels)
+ * List merge + dedupe by name (best entry wins: HLS over DASH, extras over bare URLs).
  */
 object Channels {
     const val UA = "Mozilla/5.0 (Linux; Android 9; Mi TV) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
-    private val SOURCES = listOf(
-        "https://lemajekaat.streamxlive.workers.dev/",
-        "https://endless.livenoww.workers.dev/",
-        "https://api.npoint.io/5122554ee81206923fa7",
+    val SERVERS = listOf(
+        LServer("JioStar", listOf(
+            "https://lemajekaat.streamxlive.workers.dev/",
+            "https://endless.livenoww.workers.dev/",
+            "https://api.npoint.io/5122554ee81206923fa7",
+        )),
+        LServer("+PlusTV", listOf("https://api.npoint.io/9db02feba76eb297fc65")),
+        LServer("InPlex+", listOf("https://api.npoint.io/6dd4e6633c5c07b76d47")),
     )
 
-    fun fetch(): List<Channel> {
+    fun fetch(server: LServer): List<Channel> {
         val raw = ArrayList<Channel>()
-        for (s in SOURCES) {
+        for (s in server.sources) {
             try {
                 val c = URL(s).openConnection() as HttpURLConnection
                 c.connectTimeout = 12_000; c.readTimeout = 12_000
@@ -101,7 +111,8 @@ object Channels {
                 hd.optString("cookie").ifEmpty { hd.optString("Cookie") }.takeIf { it.isNotEmpty() && it != "null" }
             }
         cookie?.let { headers["Cookie"] = it }
-        val logo = o.optString("logo").takeIf { it.isNotEmpty() && it != "null" } ?: ""
+        val logo = o.optString("logo").takeIf { it.isNotEmpty() && it != "null" }
+            ?: o.optString("channel_logo").takeIf { it.isNotEmpty() && it != "null" } ?: ""
         val backup = o.optString("url_backup").takeIf { it.isNotEmpty() && it != "null" } ?: ""
         return Channel(o.optString("id"), name, logo, guessCategory(o, name), raw, backup, headers, buildLicense(o))
     }
@@ -117,7 +128,7 @@ object Channels {
         return ""
     }
 
-    private val CAT_FIELDS = listOf("group", "category", "cat", "genre", "type", "language")
+    private val CAT_FIELDS = listOf("group", "category", "cat", "channel_genre", "genre", "type", "language")
 
     private fun guessCategory(o: JSONObject, name: String): String {
         for (f in CAT_FIELDS) {
@@ -139,30 +150,34 @@ object Channels {
             (if (ch.license.isNotEmpty()) 1 else 0) + (if (ch.backup.isNotEmpty()) 1 else 0) +
             (if (ch.headers.isNotEmpty()) 1 else 0)
 
-    // ---- offline cache: pehli baar ke baad instant open, worker down ho to bhi list dikhe ----
-    private fun cacheFile(c: Context) = File(c.filesDir, "live_channels.json")
+    // ---- offline cache (per server): pehli baar ke baad instant open, server down ho to bhi list dikhe ----
+    private fun cacheFile(c: Context, idx: Int) = File(c.filesDir, "live_channels_$idx.json")
 
-    fun saveCache(c: Context, list: List<Channel>) {
+    fun saveCache(c: Context, idx: Int, list: List<Channel>) {
         try {
             val arr = JSONArray()
             for (ch in list) arr.put(
                 JSONObject().put("id", ch.id).put("name", ch.name).put("logo", ch.logo).put("cat", ch.category)
                     .put("url", ch.url).put("backup", ch.backup).put("hdr", JSONObject(ch.headers)).put("drm", ch.license)
             )
-            cacheFile(c).writeText(arr.toString())
+            cacheFile(c, idx).writeText(arr.toString())
         } catch (_: Throwable) {}
     }
 
-    fun loadCache(c: Context): List<Channel> = try {
-        val arr = JSONArray(cacheFile(c).readText())
-        List(arr.length()) { i ->
-            val o = arr.getJSONObject(i)
-            val hdr = HashMap<String, String>()
-            o.optJSONObject("hdr")?.let { h -> for (k in h.keys()) hdr[k] = h.optString(k) }
-            Channel(o.optString("id"), o.optString("name"), o.optString("logo"), o.optString("cat"),
-                o.optString("url"), o.optString("backup"), hdr, o.optString("drm"))
-        }.filter { it.url.isNotEmpty() }
-    } catch (_: Throwable) { emptyList() }
+    fun loadCache(c: Context, idx: Int): List<Channel> {
+        // purana build ek hi file use karta tha — server 0 (JioStar) ke liye wo bhi chal jaye
+        val f = if (idx == 0 && !cacheFile(c, 0).exists()) File(c.filesDir, "live_channels.json") else cacheFile(c, idx)
+        return try {
+            val arr = JSONArray(f.readText())
+            List(arr.length()) { i ->
+                val o = arr.getJSONObject(i)
+                val hdr = HashMap<String, String>()
+                o.optJSONObject("hdr")?.let { h -> for (k in h.keys()) hdr[k] = h.optString(k) }
+                Channel(o.optString("id"), o.optString("name"), o.optString("logo"), o.optString("cat"),
+                    o.optString("url"), o.optString("backup"), hdr, o.optString("drm"))
+            }.filter { it.url.isNotEmpty() }
+        } catch (_: Throwable) { emptyList() }
+    }
 }
 
 /** Channel logos from URLs (same pattern as Thumbs, but https). */
@@ -193,11 +208,12 @@ object LiveLogo {
     }
 }
 
-/** "TV" tile screen: category chips + channel grid + search, sab D-pad se chalta hai. */
+/** "TV" tile screen: server switch + category chips + channel grid + search, sab D-pad se chalta hai. */
 class LiveTvActivity : BaseActivity() {
     private lateinit var grid: RecyclerView
     private lateinit var sub: TextView
     private lateinit var search: EditText
+    private lateinit var serverRow: LinearLayout
     private lateinit var chipsRow: LinearLayout
     private lateinit var loading: View
     private lateinit var emptyBox: View
@@ -206,6 +222,7 @@ class LiveTvActivity : BaseActivity() {
     private var cards: ChannelAdapter? = null
     private var all: List<Channel> = emptyList()
     private var cat = "All"
+    private var cur = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -213,6 +230,7 @@ class LiveTvActivity : BaseActivity() {
         grid = findViewById(R.id.grid)
         sub = findViewById(R.id.sub)
         search = findViewById(R.id.search)
+        serverRow = findViewById(R.id.serverRow)
         chipsRow = findViewById(R.id.chipsRow)
         loading = findViewById(R.id.loading)
         emptyBox = findViewById(R.id.emptyBox)
@@ -228,13 +246,15 @@ class LiveTvActivity : BaseActivity() {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun afterTextChanged(s: Editable?) { applyFilter() }
         })
-        val cached = Channels.loadCache(this)
+        cur = App.inst.prefs.tvServer.coerceIn(0, Channels.SERVERS.lastIndex)
+        val cached = Channels.loadCache(this, cur)
         if (cached.isNotEmpty()) {
             all = cached
             afterData()
             grid.post { grid.getChildAt(0)?.requestFocus() }
         } else {
             loading.visibility = View.VISIBLE
+            buildServerRow()
         }
         reload()
     }
@@ -243,17 +263,17 @@ class LiveTvActivity : BaseActivity() {
         loading.visibility = View.VISIBLE
         emptyBox.visibility = View.GONE
         App.inst.io.launch {
-            val list = try { Channels.fetch() } catch (_: Throwable) { emptyList() }
+            val list = try { Channels.fetch(Channels.SERVERS[cur]) } catch (_: Throwable) { emptyList() }
             runOnUiThread {
                 loading.visibility = View.GONE
                 if (list.isNotEmpty()) {
-                    Channels.saveCache(this@LiveTvActivity, list)
+                    Channels.saveCache(this@LiveTvActivity, cur, list)
                     App.inst.prefs.tvCount = list.size
                     all = list
                     afterData()
                     if (!search.hasFocus()) grid.post { grid.getChildAt(0)?.requestFocus() }
                 } else if (all.isEmpty()) {
-                    empty.text = "Channel list nahi aayi — internet check karke dobara try karo"
+                    empty.text = "Channel list nahi aayi — internet check karke dobara try karo (ya dusra server chuno)"
                     btnRetry.visibility = View.VISIBLE
                     emptyBox.visibility = View.VISIBLE
                     btnRetry.requestFocus()
@@ -263,11 +283,55 @@ class LiveTvActivity : BaseActivity() {
     }
 
     private fun afterData() {
+        buildServerRow()
         buildChips()
         applyFilter()
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    private fun buildServerRow() {
+        serverRow.removeAllViews()
+        val label = TextView(this)
+        label.text = "Server:"
+        label.textSize = 12f
+        label.setTypeface(label.typeface, Typeface.BOLD)
+        Fonts.apply(label)
+        label.setTextColor(0x88FFFFFF.toInt())
+        label.setPadding(0, dp(6), dp(8), dp(6))
+        label.gravity = Gravity.CENTER_VERTICAL
+        serverRow.addView(label)
+        for ((i, s) in Channels.SERVERS.withIndex()) {
+            val chip = TextView(this)
+            chip.text = if (i == cur) "● " + s.name else s.name
+            chip.textSize = 12f
+            chip.setTypeface(chip.typeface, Typeface.BOLD)
+            Fonts.apply(chip)
+            chip.setBackgroundResource(R.drawable.chip_bg)
+            chip.setPadding(dp(14), dp(6), dp(16), dp(6))
+            chip.gravity = Gravity.CENTER_VERTICAL
+            chip.isFocusable = true; chip.isClickable = true
+            chip.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(10) }
+            Focus.grow(chip, 1.06f)
+            chip.setOnClickListener { selectServer(i) }
+            chip.setTextColor(if (i == cur) 0xFF00D2FF.toInt() else 0xFFFFFFFF.toInt())
+            serverRow.addView(chip)
+        }
+    }
+
+    private fun selectServer(i: Int) {
+        if (i == cur || i !in Channels.SERVERS.indices) return
+        cur = i
+        App.inst.prefs.tvServer = i
+        cat = "All"
+        App.inst.prefs.tvCategory = "All"
+        // dusre server ka cache turant dikha do (offline bhi), fresh list peeche se aa jayegi
+        val cached = Channels.loadCache(this, cur)
+        all = cached
+        afterData()
+        if (cached.isEmpty()) loading.visibility = View.VISIBLE
+        reload()
+    }
 
     private fun buildChips() {
         val cats = LinkedHashSet<String>()
@@ -315,8 +379,8 @@ class LiveTvActivity : BaseActivity() {
         sub.text = when {
             all.isEmpty() -> "Channels load ho rahe hain…"
             q.isNotEmpty() -> "${Fmt.count(list.size)} mile"
-            cat != "All" -> "${Fmt.count(list.size)} channels · $cat"
-            else -> "${Fmt.count(list.size)} channels"
+            cat != "All" -> "${Fmt.count(list.size)} channels · $cat · ${Channels.SERVERS[cur].name}"
+            else -> "${Fmt.count(list.size)} channels · ${Channels.SERVERS[cur].name}"
         }
         cards?.set(list)
         if (list.isEmpty() && all.isNotEmpty()) {

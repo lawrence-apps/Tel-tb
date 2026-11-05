@@ -35,3 +35,15 @@ poora live-TV content ab RG TV ke andar hi chalta hai (native, WebView nahi).
 
 Build wahi purana GitHub Actions workflow (`Build TV APK`) se hogi — koi aur
 change nahi chahiye.
+
+## Server switch (v2.3)
+
+TV tile me sabse upar **Server:** row aa gayi — teen servers, remote se switch karo:
+- **JioStar** (default): pehle wale 3 sources (2 workers + npoint 5122554…)
+- **+PlusTV**: +PlusTV app ka npoint JSON (~940 channels, `channel_url`/`channel_name`/`channel_logo`/`channel_genre` + ClearKey `key`/`keyId`)
+- **InPlex+**: InPlex+ app ka npoint JSON (~937 channels, same format)
+
+- Switch karne par dusre server ka cache turant dikhta hai, fresh list background me fetch hoti hai.
+- Har server ka apna offline cache (`live_channels_0/1/2.json`); purani single-file cache JioStar ke liye fallback hai.
+- Selected server + category yaad rehti hai (Prefs: `tvServer`).
+- Parse me naye fields bhi: `channel_logo` (logo), `channel_genre` (category chips).

@@ -11,7 +11,11 @@
                 android:textColorHint="#80FFFFFF" android:imeOptions="actionSearch" android:inputType="text" android:maxLines="1"
                 android:paddingStart="12dp" android:paddingEnd="12dp" android:textSize="13sp"/>
         </LinearLayout>
-        <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
+        <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp"
+            android:paddingStart="0dp" android:scrollbars="none" android:clipToPadding="false">
+            <LinearLayout android:id="@+id/serverRow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingBottom="2dp"/>
+        </HorizontalScrollView>
+        <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp"
             android:paddingStart="0dp" android:scrollbars="none" android:clipToPadding="false">
             <LinearLayout android:id="@+id/chipsRow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingBottom="4dp"/>
         </HorizontalScrollView>
