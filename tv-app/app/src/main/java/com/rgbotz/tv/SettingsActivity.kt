@@ -1,12 +1,15 @@
 package com.rgbotz.tv
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.rgbotz.tv.core.Kind
+import com.rgbotz.tv.core.Local
 import java.io.File
 
 class SettingsActivity : BaseActivity() {
@@ -42,6 +45,7 @@ class SettingsActivity : BaseActivity() {
         row("Status", st, null)
         row("Library refresh karo", if (lib.scanning) "chal raha hai… ${lib.scannedUpTo}" else
             "${Fmt.count(lib.count(Kind.VIDEO))} videos · ${Fmt.count(lib.count(Kind.AUDIO))} gaane · ${Fmt.count(lib.count(Kind.PHOTO))} photos") { app.refreshSoon() }
+        row("Server", if (p.serverUrl.isBlank()) "Isi TV par (app ka apna server)" else "Remote: ${p.serverUrl}") { askServer() }
         row("Buffer", if (p.bufferMode == 1) "Zyada (bada buffer, kam atakega) — recommended" else "Normal (kam memory)") {
             p.bufferMode = 1 - p.bufferMode
             app.streams.aheadMb = BufferProfile.of(this, p.bufferMode == 1, p.smooth).aheadMb
@@ -58,6 +62,31 @@ class SettingsActivity : BaseActivity() {
     }
 
     private fun langLabel(l: String) = when (l) { "hi" -> "Hindi"; "en" -> "English"; "ta" -> "Tamil"; "te" -> "Telugu"; "" -> "—"; else -> l }
+
+    /** Server URL dalo ya saaf karo. Khaali = app ka apna server (isi TV par). */
+    private fun askServer() {
+        val pad = (20 * resources.displayMetrics.density).toInt()
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad / 2, pad, 0) }
+        val et = EditText(this).apply {
+            hint = "http://1.2.3.4:8080"
+            singleLine = true
+            setText(app.prefs.serverUrl)
+        }
+        box.addView(et)
+        AlertDialog.Builder(this)
+            .setTitle("Server URL")
+            .setMessage("Khaali chhodo = app ka apna server (isi TV par).\nRemote server (Coolify/PC) ka URL dalo — phir TV apna Python server nahi chalayega.")
+            .setView(box)
+            .setPositiveButton("Save") { _, _ -> app.prefs.serverUrl = et.text.toString().trim(); applyServer() }
+            .setNeutralButton("Default") { _, _ -> app.prefs.serverUrl = ""; applyServer() }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun applyServer() {
+        Local.setCustom(app.prefs.serverUrl)
+        app.lib.reset()
+    }
 
     private fun dirSize(f: File): Long = if (f.isFile) f.length() else (f.listFiles()?.sumOf { dirSize(it) } ?: 0L)
 }

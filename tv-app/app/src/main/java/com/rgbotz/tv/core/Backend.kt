@@ -12,10 +12,17 @@ import java.util.concurrent.CopyOnWriteArrayList
 /**
  * Telegram ka kaam app ke andar chalne wale Python server (tgserver.py, Telethon bot login) se hota hai.
  * Ye file usse localhost par baat karti hai. Kuch bhi media TV storage me save nahi hota.
+ * Settings me remote "Server URL" dala ho to wahi URL use hota hai (embedded server start hi nahi hota).
  */
 object Local {
     const val PORT = 8090
-    const val BASE = "http://127.0.0.1:$PORT"
+    @Volatile var BASE = "http://127.0.0.1:$PORT"
+
+    fun setCustom(url: String?) {
+        BASE = url?.trim()?.trimEnd('/')?.takeIf { it.isNotEmpty() } ?: "http://127.0.0.1:$PORT"
+    }
+
+    val isRemote: Boolean get() = BASE != "http://127.0.0.1:$PORT"
 
     fun get(path: String, timeoutMs: Int = 15_000): String {
         val c = URL(BASE + path).openConnection() as HttpURLConnection
@@ -147,6 +154,18 @@ class Library(private val td: Td) {
     }
 
     fun refresh() { try { Local.get("/api/scan") } catch (_: Throwable) {} }
+
+    /** Server switch: purani list saaf, agli poll naye server se sab padhega. */
+    fun reset() {
+        synchronized(map) { map.clear() }
+        version = -1L
+        scanning = false
+        scannedUpTo = 0L
+        lastError = null
+        chatTitle = ""
+        latestUpdate = null
+        notifyChanged()
+    }
 }
 
 /**

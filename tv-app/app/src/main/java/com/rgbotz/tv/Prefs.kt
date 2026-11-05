@@ -54,6 +54,10 @@ class Prefs(ctx: Context) {
     var tvServer: Int
         get() = sp.getInt("tvServer", 0)
         set(v) { sp.edit().putInt("tvServer", v).apply() }
+    /** "" = app ke andar wala server (isi TV par), warna remote server ka URL (http://...) — Coolify/PC */
+    var serverUrl: String
+        get() = sp.getString("serverUrl", "") ?: ""
+        set(v) { sp.edit().putString("serverUrl", v.trim()).apply() }
 
     fun pos(id: Long): Long = sp.getLong("pos_$id", 0)
     fun dur(id: Long): Long = sp.getLong("dur_$id", 0)

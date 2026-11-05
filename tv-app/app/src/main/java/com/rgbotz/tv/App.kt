@@ -26,13 +26,15 @@ class App : Application() {
         inst = this
         installCrashReporter()
         prefs = Prefs(this)
+        Local.setCustom(prefs.serverUrl)
         File(cacheDir, "tdfiles").apply { deleteRecursively(); mkdirs() }
         val hasApi = BuildConfig.TG_API_HASH.isNotEmpty() && Secrets.botToken().isNotEmpty()
         td = Td(hasApi)
         streams = Streams()
         streams.aheadMb = BufferProfile.of(this, prefs.bufferMode == 1, prefs.smooth).aheadMb
         lib = Library(td)
-        if (hasApi) startServer()
+        // Remote server set hai to embedded Python server start hi nahi hota — memory bachi, net bhi.
+        if (hasApi && prefs.serverUrl.isBlank()) startServer()
         Thread {
             while (true) {
                 try { streams.speedBps = lib.poll() } catch (t: Throwable) { Log.w("TGTV", "poll: $t") }
