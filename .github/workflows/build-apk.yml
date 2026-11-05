@@ -35,13 +35,11 @@ jobs:
             echo "::add-mask::$CFG"
             echo "$CFG" | base64 -d > /tmp/cfg.json
             for k in api_hash bot_token ks_pass; do v=$(jq -r ".$k // empty" /tmp/cfg.json); [ -n "$v" ] && echo "::add-mask::$v"; done
-            {
-              echo "TG_HASH=$(jq -r '.api_hash // empty' /tmp/cfg.json)"
-              echo "TG_TOKEN=$(jq -r '.bot_token // empty' /tmp/cfg.json)"
-              echo "KS_PASS=$(jq -r '.ks_pass // empty' /tmp/cfg.json)"
-              echo "VCODE=$(jq -r '.version_code // empty' /tmp/cfg.json)"
-              echo "VNAME=$(jq -r '.version_name // empty' /tmp/cfg.json)"
-            } >> "$GITHUB_ENV"
+            TG_HASH=$(jq -r '.api_hash // empty' /tmp/cfg.json)
+            TG_TOKEN=$(jq -r '.bot_token // empty' /tmp/cfg.json)
+            KS_PASS=$(jq -r '.ks_pass // empty' /tmp/cfg.json)
+            VCODE=$(jq -r '.version_code // empty' /tmp/cfg.json)
+            VNAME=$(jq -r '.version_name // empty' /tmp/cfg.json)
             jq -r '.ks // empty' /tmp/cfg.json | base64 -d > /tmp/release.p12 || true
             rm /tmp/cfg.json
           else
@@ -49,20 +47,26 @@ jobs:
             [ -n "$S_API_HASH" ] && echo "::add-mask::$S_API_HASH"
             [ -n "$S_BOT_TOKEN" ] && echo "::add-mask::$S_BOT_TOKEN"
             [ -n "$S_KS_PASS" ] && echo "::add-mask::$S_KS_PASS"
-            {
-              echo "TG_HASH=$S_API_HASH"
-              echo "TG_TOKEN=$S_BOT_TOKEN"
-              echo "KS_PASS=$S_KS_PASS"
-              echo "VCODE=${IN_VCODE:-12}"
-              echo "VNAME=${IN_VNAME:-2.2}"
-            } >> "$GITHUB_ENV"
+            TG_HASH="$S_API_HASH"
+            TG_TOKEN="$S_BOT_TOKEN"
+            KS_PASS="$S_KS_PASS"
+            VCODE="${IN_VCODE:-12}"
+            VNAME="${IN_VNAME:-2.2}"
             if [ -n "$S_KS_B64" ]; then echo "$S_KS_B64" | base64 -d > /tmp/release.p12; else rm -f /tmp/release.p12; fi
           fi
-          if [ -s /tmp/release.p12 ]; then echo "HAS_KS=true" >> "$GITHUB_ENV"; else echo "HAS_KS=false" >> "$GITHUB_ENV"; fi
+          # NOTE: $GITHUB_ENV agle step se active hota hai, isliye yahin local vars se check karo
           if [ -z "$TG_HASH" ] || [ -z "$TG_TOKEN" ]; then
             echo "TG_API_HASH / TG_BOT_TOKEN secrets nahi mile (na input na secrets). Repo Settings > Secrets and variables > Actions me daalo."
             exit 1
           fi
+          {
+            echo "TG_HASH=$TG_HASH"
+            echo "TG_TOKEN=$TG_TOKEN"
+            echo "KS_PASS=$KS_PASS"
+            echo "VCODE=$VCODE"
+            echo "VNAME=$VNAME"
+          } >> "$GITHUB_ENV"
+          if [ -s /tmp/release.p12 ]; then echo "HAS_KS=true" >> "$GITHUB_ENV"; else echo "HAS_KS=false" >> "$GITHUB_ENV"; fi
 
       - uses: actions/checkout@v4
 
