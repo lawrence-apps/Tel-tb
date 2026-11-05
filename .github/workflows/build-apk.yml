@@ -127,3 +127,21 @@ jobs:
           )
           gh release create "$TAG" "$APK" --target "$GITHUB_SHA" --title "RG-TV v${V}" --notes "$NOTES"
           echo "Release publish ho gaya: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
+
+      - name: APK bot admin ko bhejo (automatic)
+        env:
+          TG_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_ADMIN_ID: "1345802943"
+        run: |
+          V="${VNAME:-2.1}"; VC="${VCODE:-11}"
+          APK="RG-TV-v${V}.apk"
+          echo "Bhej rahe hain: $APK -> bot admin $TG_ADMIN_ID (@tvrg_bot DM)"
+          CAP=$(printf 'TGTV-UPDATE %s %s\nRG-TV v%s (versionCode %s) — automatic build se aaya.\nIsko storage channel me forward karo — sab TV par update popup aa jayega.' "$VC" "$V" "$V" "$VC")
+          CODE=$(curl -sS --max-time 600 -o /tmp/tgsend.json -w "%{http_code}" \
+            -F "chat_id=${TG_ADMIN_ID}" \
+            -F "document=@${APK}" \
+            -F "caption=${CAP}" \
+            "https://api.telegram.org/bot${TG_TOKEN}/sendDocument")
+          cat /tmp/tgsend.json; echo
+          jq -e '.ok == true' /tmp/tgsend.json >/dev/null || { echo "Telegram send FAIL (http $CODE)"; exit 1; }
+          echo "APK admin ko apne aap chala gaya"
