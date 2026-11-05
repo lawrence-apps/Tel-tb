@@ -159,7 +159,7 @@ class LivePlayActivity : BaseActivity() {
     /** ClearKey key request ka jawab khud deta hai — koi HTTP nahi (data: URI ka bug isse gaya). */
     private class InlineClearKey(private val json: String) : MediaDrmCallback {
         override fun executeKeyRequest(uuid: UUID, request: ExoMediaDrm.KeyRequest): ByteArray = json.toByteArray()
-        override fun executeProvisioningRequest(uuid: UUID, request: ExoMediaDrm.ProvisionRequest): ByteArray = json.toByteArray()
+        override fun executeProvisionRequest(uuid: UUID, request: ExoMediaDrm.ProvisionRequest): ByteArray = json.toByteArray()
     }
 
     private fun hexToB64(hex: String): String {
