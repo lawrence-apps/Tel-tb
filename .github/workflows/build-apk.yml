@@ -166,11 +166,28 @@ jobs:
 
       - name: Purane updates hatao (channel + bot DM)
         env:
-          API_ID: "14116809"
-          API_HASH: ${{ secrets.TG_API_HASH }}
-          BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
-          CHANNEL_ID: "-1003904890252"
-          ADMIN_ID: "1345802943"
+          TG_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHANNEL_ID: "-1003904890252"
+          TG_ADMIN_ID: "1345802943"
         run: |
-          pip install --quiet telethon
-          python3 .github/scripts/cleanup_old_updates.py
+          # Pichhli baar ke post/DM ki id .github/update-state.json me rakhi hoti hai
+          # (bots history search nahi kar sakte, isliye id yaad rakhni padti hai)
+          OLD_CH=0; OLD_DM=0
+          if [ -f .github/update-state.json ]; then
+            OLD_CH=$(jq -r '.channel_msg // 0' .github/update-state.json)
+            OLD_DM=$(jq -r '.dm_msg // 0' .github/update-state.json)
+          fi
+          delmsg () {
+            curl -sS --max-time 60 "https://api.telegram.org/bot${TG_TOKEN}/deleteMessage" \
+              -d "chat_id=$1" -d "message_id=$2" > /tmp/del.json || true
+            jq -e '.ok == true' /tmp/del.json >/dev/null 2>&1 && echo "purana update hata (chat $1, msg $2)" || echo "msg $2 delete nahi hua (chalega)"
+          }
+          if [ "${OLD_CH:-0}" != "0" ] && [ "${OLD_CH}" != "${NEW_CH_MSG:-0}" ]; then delmsg "$TG_CHANNEL_ID" "$OLD_CH"; fi
+          if [ "${OLD_DM:-0}" != "0" ] && [ "${OLD_DM}" != "${NEW_DM_MSG:-0}" ]; then delmsg "$TG_ADMIN_ID" "$OLD_DM"; fi
+          # naya state likho aur repo me save kar do (fail hua to build nahi rukega)
+          jq -n --arg c "${NEW_CH_MSG:-0}" --arg d "${NEW_DM_MSG:-0}" '{channel_msg: ($c|tonumber), dm_msg: ($d|tonumber)}' > .github/update-state.json
+          git config user.name "rgtv-bot"; git config user.email "bot@rgtv.local"
+          git add .github/update-state.json
+          git commit -m "update-state: channel msg ${NEW_CH_MSG:-?}, DM msg ${NEW_DM_MSG:-?} [skip ci]" || true
+          git pull --rebase -q origin main || true
+          git push -q origin main || echo "state push fail (chalega — agli baar phir try hoga)"
