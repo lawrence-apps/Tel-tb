@@ -6,3 +6,6 @@ server/index.json
 build/
 local.properties
 .idea/
+
+__pycache__/
+*.pyc
