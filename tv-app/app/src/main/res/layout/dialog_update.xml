@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="420dp" android:layout_height="wrap_content" android:background="@drawable/glass_panel"
+            android:gravity="center_horizontal" android:orientation="vertical" android:padding="22dp">
+            <TextView android:id="@+id/updTitle" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="19sp"/>
+            <TextView android:id="@+id/updInfo" style="@style/T.Sub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:gravity="center" android:textSize="12sp"/>
+            <TextView android:id="@+id/btnUpdate" style="@style/T.B" android:layout_width="match_parent" android:layout_height="46dp" android:layout_marginTop="18dp"
+                android:background="@drawable/btn_primary" android:gravity="center" android:text="Update" android:textSize="16sp" android:focusable="true" android:clickable="true"/>
+            <TextView android:id="@+id/btnLater" style="@style/T.B" android:layout_width="match_parent" android:layout_height="46dp" android:layout_marginTop="10dp"
+                android:background="@drawable/btn_primary" android:gravity="center" android:text="Baad me" android:textSize="16sp" android:focusable="true" android:clickable="true"/>
+        </LinearLayout>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/bg_app">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:layout_marginStart="45dp" android:layout_marginEnd="45dp"
+        android:layout_marginTop="22dp" android:orientation="vertical">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="bottom" android:orientation="horizontal">
+            <TextView android:id="@+id/title" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Live TV" android:textSize="24sp"/>
+            <TextView android:id="@+id/sub" style="@style/T.Sub" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:layout_marginStart="12dp" android:layout_marginBottom="3dp" android:textSize="12sp" android:maxLines="1" android:text="Channels load ho rahe hain…"/>
+            <EditText android:id="@+id/search" style="@style/T" android:layout_width="250dp" android:layout_height="36dp" android:layout_marginBottom="2dp"
+                android:background="@drawable/edit_bg" android:drawableStart="@drawable/ic_search" android:drawablePadding="8dp" android:hint="Channel dhundo…"
+                android:textColorHint="#80FFFFFF" android:imeOptions="actionSearch" android:inputType="text" android:maxLines="1"
+                android:paddingStart="12dp" android:paddingEnd="12dp" android:textSize="13sp"/>
+        </LinearLayout>
+        <HorizontalScrollView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp"
+            android:paddingStart="0dp" android:scrollbars="none" android:clipToPadding="false">
+            <LinearLayout android:id="@+id/chipsRow" android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal" android:paddingBottom="4dp"/>
+        </HorizontalScrollView>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:layout_marginTop="2dp">
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/grid" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:clipToPadding="false" android:paddingStart="30dp" android:paddingEnd="30dp" android:paddingTop="4dp" android:paddingBottom="24dp"/>
+            <LinearLayout android:id="@+id/emptyBox" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"
+                android:gravity="center" android:orientation="vertical" android:visibility="gone">
+                <TextView android:id="@+id/empty" style="@style/T.Sub" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:gravity="center" android:textSize="14sp"/>
+                <TextView android:id="@+id/btnRetry" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp" android:background="@drawable/chip_bg" android:drawableStart="@drawable/ic_restart" android:drawablePadding="7dp"
+                    android:paddingStart="14dp" android:paddingEnd="16dp" android:paddingTop="7dp" android:paddingBottom="7dp" android:gravity="center_vertical"
+                    android:text="Dobara try karo" android:textSize="13sp" android:focusable="true" android:clickable="true" android:visibility="gone"/>
+            </LinearLayout>
+            <LinearLayout android:id="@+id/loading" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"
+                android:background="@drawable/pill_dark" android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp">
+                <ProgressBar android:layout_width="26dp" android:layout_height="26dp" android:indeterminateTint="@color/acc"/>
+                <TextView style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="10dp"
+                    android:layout_marginEnd="6dp" android:text="Live channels aa rahe hain…" android:textSize="13sp"/>
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+    <TextView android:id="@+id/footer" style="@style/T.Sub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="bottom"
+        android:layout_marginBottom="5dp" android:gravity="center" android:text="Support &amp; Love ♥ Ravi" android:textSize="10sp" android:alpha="0.8"/>
+</FrameLayout>

@@ -1,0 +1,77 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.chaquo.python'
+}
+
+// Secrets kabhi git me nahi: build ke waqt -P properties se aate hain
+def p = { String k, String d -> (project.findProperty(k) ?: d) as String }
+def xorHex = { String s ->
+    byte[] key = "rgtv-tvdb".getBytes("UTF-8"); byte[] b = s.getBytes("UTF-8")
+    StringBuilder sb = new StringBuilder()
+    for (int i = 0; i < b.length; i++) sb.append(String.format("%02x", (b[i] ^ key[i % key.length]) & 0xff))
+    sb.toString()
+}
+
+android {
+    namespace 'com.rgbotz.tv'
+    compileSdk 35
+    defaultConfig {
+        applicationId "com.ravi.tgtv"
+        minSdk 24
+        targetSdk 34
+        versionCode p("versionCode", "11") as Integer
+        versionName p("versionName", "2.1")
+        buildConfigField "String", "TG_API_ID", "\"${p("tgApiId", "14116809")}\""
+        buildConfigField "String", "TG_API_HASH", "\"${p("tgApiHash", "")}\""
+        buildConfigField "String", "TG_BOT_X", "\"${xorHex(p("tgBotToken", ""))}\""
+        buildConfigField "String", "TG_CHAT_ID", "\"${p("tgGroupId", "-1003904890252")}\""
+        ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
+    }
+    signingConfigs {
+        release {
+            def ks = p("ksFile", "")
+            if (ks && new File(ks).exists()) {
+                storeFile file(ks)
+                storeType "pkcs12"
+                storePassword p("ksPass", "")
+                keyAlias p("ksAlias", "tgtv")
+                keyPassword p("ksPass", "")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+    buildFeatures { buildConfig true }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = "17" }
+    lint { abortOnError false; checkReleaseBuilds false }
+}
+
+chaquopy {
+    defaultConfig {
+        version = "3.11"
+        buildPython("python3")
+        pip { install("telethon==1.38.1") }
+    }
+}
+
+dependencies {
+    def media3 = "1.8.0"
+    implementation "androidx.media3:media3-exoplayer:$media3"
+    implementation "androidx.media3:media3-exoplayer-hls:$media3"
+    implementation "androidx.media3:media3-exoplayer-dash:$media3"
+    implementation "androidx.media3:media3-datasource:$media3"
+    implementation "androidx.media3:media3-ui:$media3"
+    implementation "org.jellyfin.media3:media3-ffmpeg-decoder:1.8.0+1"
+    implementation "androidx.recyclerview:recyclerview:1.4.0"
+    implementation "androidx.core:core-ktx:1.13.1"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0"
+}

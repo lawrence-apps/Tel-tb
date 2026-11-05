@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/bg_app">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="45dp" android:layout_marginEnd="45dp"
+        android:layout_marginTop="22dp" android:gravity="bottom" android:orientation="horizontal">
+        <TextView android:id="@+id/title" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="24sp"/>
+        <TextView android:id="@+id/sub" style="@style/T.Sub" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:layout_marginStart="12dp" android:layout_marginBottom="3dp" android:textSize="12sp" android:maxLines="1"/>
+        <TextClock style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:format12Hour="h:mm" android:format24Hour="HH:mm" android:textSize="14sp"/>
+    </LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:layout_marginTop="62dp" android:orientation="vertical">
+        <EditText android:id="@+id/search" style="@style/T" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginStart="45dp"
+            android:layout_marginEnd="45dp" android:layout_marginBottom="6dp" android:background="@drawable/edit_bg" android:drawableStart="@drawable/ic_search"
+            android:drawablePadding="10dp" android:hint="Naam likho… (movie, gaana, #tag)" android:textColorHint="#80FFFFFF" android:imeOptions="actionSearch"
+            android:inputType="text" android:maxLines="1" android:paddingStart="14dp" android:paddingEnd="14dp" android:textSize="15sp" android:visibility="gone"/>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/grid" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:clipToPadding="false" android:paddingStart="36dp" android:paddingEnd="36dp" android:paddingTop="6dp" android:paddingBottom="24dp"/>
+            <TextView android:id="@+id/empty" style="@style/T.Sub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center"
+                android:gravity="center" android:paddingStart="80dp" android:paddingEnd="80dp" android:textSize="14sp" android:visibility="gone"/>
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

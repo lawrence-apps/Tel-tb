@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="9dp" android:focusable="true" android:clickable="true">
+    <FrameLayout android:id="@+id/bg" android:layout_width="match_parent" android:layout_height="100dp" android:background="@drawable/tile_red"
+        android:foreground="@drawable/focus_ring" android:duplicateParentState="true" android:padding="14dp">
+        <ImageView android:layout_width="30dp" android:layout_height="30dp" android:src="@drawable/ic_folder"/>
+        <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom" android:orientation="vertical">
+            <TextView android:id="@+id/name" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="19sp" android:maxLines="1"/>
+            <TextView android:id="@+id/count" style="@style/T" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="11sp" android:textColor="#D9FFFFFF"/>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

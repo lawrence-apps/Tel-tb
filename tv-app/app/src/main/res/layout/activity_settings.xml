@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/bg_app">
+    <TextView style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="45dp" android:layout_marginTop="22dp" android:text="Settings" android:textSize="24sp"/>
+    <ScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:layout_marginTop="66dp" android:layout_marginBottom="22dp" android:clipToPadding="false" android:paddingBottom="10dp">
+        <LinearLayout android:id="@+id/rows" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="120dp" android:layout_marginEnd="120dp" android:orientation="vertical"/>
+    </ScrollView>
+
+    <TextView android:id="@+id/footer" style="@style/T.Sub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="bottom"
+        android:layout_marginBottom="5dp" android:gravity="center" android:text="Support &amp; Love ♥ Ravi" android:textSize="10sp" android:alpha="0.8"/>
+</FrameLayout>

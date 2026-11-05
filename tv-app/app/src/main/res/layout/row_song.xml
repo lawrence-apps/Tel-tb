@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="40dp" android:background="@drawable/row_bg" android:focusable="true" android:clickable="true"
+    android:gravity="center_vertical" android:orientation="horizontal" android:paddingStart="10dp" android:paddingEnd="10dp" android:layout_marginTop="1dp">
+    <TextView android:id="@+id/num" style="@style/T.Sub" android:layout_width="28dp" android:layout_height="wrap_content" android:textSize="12sp"/>
+    <ImageView android:id="@+id/eq" android:layout_width="16dp" android:layout_height="16dp" android:layout_marginEnd="12dp" android:src="@drawable/ic_eq_red" android:visibility="gone"/>
+    <TextView android:id="@+id/title" style="@style/T.B" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:ellipsize="end" android:maxLines="1" android:textSize="14sp"/>
+    <TextView android:id="@+id/artist" style="@style/T.Sub" android:layout_width="150dp" android:layout_height="wrap_content" android:layout_marginStart="10dp" android:ellipsize="end" android:maxLines="1" android:textSize="11sp"/>
+    <TextView android:id="@+id/dur" style="@style/T.Sub" android:layout_width="48dp" android:layout_height="wrap_content" android:gravity="end" android:textSize="11sp"/>
+</LinearLayout>

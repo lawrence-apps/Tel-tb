@@ -1,0 +1,13 @@
+<resources>
+<style name="Theme.RGTV" parent="android:Theme.Material.NoActionBar.Fullscreen">
+  <item name="android:windowBackground">@drawable/bg_app</item>
+  <item name="android:colorAccent">@color/acc</item>
+  <item name="android:colorPrimary">@color/acc</item>
+  <item name="android:textColor">#FFFFFFFF</item>
+  <item name="android:windowContentOverlay">@null</item>
+  <item name="android:windowNoTitle">true</item>
+</style>
+<style name="T"><item name="android:textColor">#FFFFFFFF</item><item name="android:includeFontPadding">false</item></style>
+<style name="T.Sub"><item name="android:textColor">@color/sub</item></style>
+<style name="T.B"><item name="android:textStyle">bold</item></style>
+</resources>

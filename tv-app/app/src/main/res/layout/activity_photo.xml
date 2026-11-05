@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#FF000000">
+    <ImageView android:id="@+id/img" android:layout_width="match_parent" android:layout_height="match_parent" android:scaleType="fitCenter"/>
+    <ProgressBar android:id="@+id/loading" android:layout_width="34dp" android:layout_height="34dp" android:layout_gravity="center" android:indeterminateTint="@color/acc" android:visibility="gone"/>
+    <FrameLayout android:id="@+id/overlay" android:layout_width="match_parent" android:layout_height="match_parent">
+        <View android:layout_width="match_parent" android:layout_height="90dp" android:background="@drawable/shade_top"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="40dp" android:layout_marginEnd="40dp" android:layout_marginTop="20dp" android:orientation="horizontal">
+            <TextView android:id="@+id/title" style="@style/T.B" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:maxLines="1" android:ellipsize="end" android:textSize="16sp"/>
+            <TextView android:id="@+id/info" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="13sp" android:textColor="#FFE8E8EC"/>
+        </LinearLayout>
+        <TextView style="@style/T" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|center_horizontal" android:layout_marginBottom="20dp"
+            android:background="@drawable/pill_dark" android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="6dp" android:paddingBottom="6dp"
+            android:text="◀ ▶  pichli / agli     ·     OK = slideshow     ·     Back = wapas" android:textSize="11.5sp" android:textColor="#FFDDDDDD"/>
+    </FrameLayout>
+</FrameLayout>

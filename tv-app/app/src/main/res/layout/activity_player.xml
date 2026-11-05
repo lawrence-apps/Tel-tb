@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#FF000000">
+    <androidx.media3.ui.PlayerView android:id="@+id/pv" android:layout_width="match_parent" android:layout_height="match_parent" android:focusable="false"/>
+    <FrameLayout android:id="@+id/controls" android:layout_width="match_parent" android:layout_height="match_parent">
+        <View android:layout_width="match_parent" android:layout_height="120dp" android:background="@drawable/shade_top"/>
+        <View android:layout_width="match_parent" android:layout_height="180dp" android:layout_gravity="bottom" android:background="@drawable/shade_bottom"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="40dp" android:layout_marginEnd="40dp"
+            android:layout_marginTop="22dp" android:orientation="vertical">
+            <TextView android:id="@+id/title" style="@style/T.B" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="20sp" android:maxLines="1" android:ellipsize="end"/>
+            <TextView android:id="@+id/meta" style="@style/T.Sub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textSize="11.5sp"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="bottom" android:layout_marginStart="40dp"
+            android:layout_marginEnd="40dp" android:layout_marginBottom="22dp" android:orientation="vertical">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="32dp" android:gravity="center_vertical" android:orientation="horizontal">
+                <TextView android:id="@+id/tPos" style="@style/T.B" android:layout_width="64dp" android:layout_height="wrap_content" android:textSize="12sp" android:text="0:00"/>
+                <com.rgbotz.tv.TvSeekBar android:id="@+id/seek" android:layout_width="0dp" android:layout_height="32dp" android:layout_weight="1"/>
+                <TextView android:id="@+id/tDur" style="@style/T.B" android:layout_width="64dp" android:layout_height="wrap_content" android:gravity="end" android:textSize="12sp" android:text="0:00"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:gravity="center" android:orientation="horizontal">
+                <ImageView android:id="@+id/btnRew" android:layout_width="42dp" android:layout_height="42dp" android:layout_marginStart="7dp" android:layout_marginEnd="7dp" android:background="@drawable/btn_round" android:padding="10dp" android:src="@drawable/ic_rew" android:focusable="true" android:clickable="true"/>
+                <ImageView android:id="@+id/btnPlay" android:layout_width="54dp" android:layout_height="54dp" android:layout_marginStart="7dp" android:layout_marginEnd="7dp" android:background="@drawable/btn_round_red" android:padding="13dp" android:src="@drawable/ic_pause" android:focusable="true" android:clickable="true"/>
+                <ImageView android:id="@+id/btnFwd" android:layout_width="42dp" android:layout_height="42dp" android:layout_marginStart="7dp" android:layout_marginEnd="7dp" android:background="@drawable/btn_round" android:padding="10dp" android:src="@drawable/ic_fwd" android:focusable="true" android:clickable="true"/>
+                <Space android:layout_width="22dp" android:layout_height="1dp"/>
+
+        <TextView android:id="@+id/btnTracks" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp" android:background="@drawable/chip_bg" android:drawableStart="@drawable/ic_subtitles" android:drawablePadding="7dp"
+            android:paddingStart="13dp" android:paddingEnd="15dp" android:paddingTop="6dp" android:paddingBottom="6dp" android:gravity="center_vertical"
+            android:text="Audio &amp; Subs" android:textSize="12sp" android:focusable="true" android:clickable="true"/>
+
+        <TextView android:id="@+id/btnNext" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp" android:background="@drawable/chip_bg" android:drawableStart="@drawable/ic_next" android:drawablePadding="7dp"
+            android:paddingStart="13dp" android:paddingEnd="15dp" android:paddingTop="6dp" android:paddingBottom="6dp" android:gravity="center_vertical"
+            android:text="Agla" android:textSize="12sp" android:focusable="true" android:clickable="true"/>
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+    <LinearLayout android:id="@+id/loading" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="center"
+        android:background="@drawable/pill_dark" android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp" android:visibility="gone">
+        <ProgressBar android:layout_width="26dp" android:layout_height="26dp" android:indeterminateTint="@color/acc"/>
+        <TextView style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:id="@+id/loadingText" android:layout_marginStart="10dp" android:layout_marginEnd="6dp" android:text="Buffering…" android:textSize="13sp"/>
+    </LinearLayout>
+    <FrameLayout android:id="@+id/trackPanel" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/dim" android:visibility="gone">
+        <LinearLayout android:layout_width="600dp" android:layout_height="wrap_content" android:layout_gravity="center" android:background="@drawable/glass_panel"
+            android:orientation="vertical" android:padding="20dp">
+            <TextView style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Audio aur Subtitles" android:textSize="18sp"/>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:orientation="horizontal">
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.25" android:orientation="vertical">
+                    <TextView style="@style/T.Sub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_marginBottom="4dp"
+                        android:drawableStart="@drawable/ic_audio" android:drawablePadding="6dp" android:gravity="center_vertical" android:letterSpacing="0.06" android:text="AUDIO (BHASHA)" android:textSize="11sp"/>
+                    <LinearLayout android:id="@+id/audioList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
+                </LinearLayout>
+                <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="18dp" android:orientation="vertical">
+                    <TextView style="@style/T.Sub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:layout_marginBottom="4dp"
+                        android:drawableStart="@drawable/ic_subtitles" android:drawablePadding="6dp" android:gravity="center_vertical" android:letterSpacing="0.06" android:text="SUBTITLES" android:textSize="11sp"/>
+                    <LinearLayout android:id="@+id/subList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
+                </LinearLayout>
+            </LinearLayout>
+            <TextView style="@style/T.Sub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="14dp"
+                android:text="Software decoder ON: AC3 · EAC3 · DTS · TrueHD sab chalega   ·   Back = band" android:textSize="10.5sp"/>
+        </LinearLayout>
+    </FrameLayout>
+    <FrameLayout android:id="@+id/resumePanel" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/dim" android:visibility="gone">
+        <LinearLayout android:layout_width="420dp" android:layout_height="wrap_content" android:layout_gravity="center" android:background="@drawable/glass_panel"
+            android:gravity="center_horizontal" android:orientation="vertical" android:padding="22dp">
+            <TextView style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Kahan se dekhna hai?" android:textSize="19sp"/>
+            <TextView android:id="@+id/resumeTitle" style="@style/T.Sub" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:maxLines="1" android:ellipsize="end" android:textSize="12sp"/>
+            <TextView android:id="@+id/btnResume" style="@style/T.B" android:layout_width="match_parent" android:layout_height="46dp" android:layout_marginTop="18dp"
+                android:background="@drawable/btn_primary" android:drawableStart="@drawable/ic_play" android:drawablePadding="10dp" android:gravity="center_vertical"
+                android:paddingStart="20dp" android:text="Resume" android:textSize="16sp" android:focusable="true" android:clickable="true"/>
+            <TextView android:id="@+id/btnStartOver" style="@style/T.B" android:layout_width="match_parent" android:layout_height="46dp" android:layout_marginTop="10dp"
+                android:background="@drawable/btn_primary" android:drawableStart="@drawable/ic_restart" android:drawablePadding="10dp" android:gravity="center_vertical"
+                android:paddingStart="20dp" android:text="Start over (shuru se)" android:textSize="16sp" android:focusable="true" android:clickable="true"/>
+        </LinearLayout>
+    </FrameLayout>
+    <FrameLayout android:id="@+id/errorPanel" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/dim" android:visibility="gone">
+        <LinearLayout android:layout_width="480dp" android:layout_height="wrap_content" android:layout_gravity="center" android:background="@drawable/glass_panel"
+            android:gravity="center_horizontal" android:orientation="vertical" android:padding="22dp">
+            <TextView android:id="@+id/errorText" style="@style/T.B" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:textSize="15sp"/>
+            <TextView android:id="@+id/btnRetry" style="@style/T.B" android:layout_width="200dp" android:layout_height="44dp" android:layout_marginTop="16dp" android:background="@drawable/btn_primary"
+                android:gravity="center" android:text="Dobara try karo" android:textSize="15sp" android:focusable="true" android:clickable="true"/>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

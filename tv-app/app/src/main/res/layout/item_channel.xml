@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="8dp"
+    android:focusable="true" android:clickable="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:duplicateParentState="true">
+        <FrameLayout android:id="@+id/thumbWrap" android:layout_width="match_parent" android:layout_height="86dp" android:background="@drawable/card_bg"
+            android:foreground="@drawable/focus_ring_card" android:duplicateParentState="true" android:outlineProvider="background">
+            <ImageView android:id="@+id/logo" android:layout_width="match_parent" android:layout_height="match_parent"
+                android:scaleType="fitCenter" android:padding="12dp"/>
+            <TextView android:id="@+id/liveBadge" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_gravity="top|start" android:layout_margin="6dp" android:text="● LIVE" android:textColor="#FF30D158" android:textSize="9sp"/>
+        </FrameLayout>
+        <TextView android:id="@+id/name" style="@style/T.B" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
+            android:ellipsize="end" android:maxLines="1" android:textSize="12.5sp"/>
+        <TextView android:id="@+id/cat" style="@style/T.Sub" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
+            android:ellipsize="end" android:maxLines="1" android:textSize="10sp"/>
+    </LinearLayout>
+</FrameLayout>
