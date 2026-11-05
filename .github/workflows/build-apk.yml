@@ -16,6 +16,10 @@ on:
         required: false
         default: ""
 
+# Release publish ke liye GITHUB_TOKEN ko likhne ki permission chahiye
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -102,3 +106,24 @@ jobs:
           name: TelegramTV-apk
           path: RG-TV-v*.apk
           retention-days: 7
+
+      - name: GitHub Release publish (automatic)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${VNAME:-2.1}"; VC="${VCODE:-11}"
+          APK="RG-TV-v${V}.apk"; TAG="v${V}"
+          [ -f "$APK" ] || { echo "APK nahi mila: $APK"; exit 1; }
+          # Isi version ka purana release/tag hata do taaki hamesha latest build hi release me rahe
+          gh release view "$TAG" >/dev/null 2>&1 && gh release delete "$TAG" --yes --cleanup-tag || true
+          NOTES=$(cat <<EOB
+          RG-TV v${V} (versionCode ${VC}) — build se auto-publish hua APK.
+
+          **Install:** APK download karo → TV me file manager se kholo → "Unknown sources" allow karo → install.
+          App khud bhi update popup dikhayega jab storage channel me TGTV-UPDATE post aayega.
+
+          **Is build me:** pura changelog repo ki commit history me hai (https://github.com/${GITHUB_REPOSITORY}/commits/main).
+          EOB
+          )
+          gh release create "$TAG" "$APK" --target "$GITHUB_SHA" --title "RG-TV v${V}" --notes "$NOTES"
+          echo "Release publish ho gaya: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
