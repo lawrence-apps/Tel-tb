@@ -264,6 +264,27 @@ async def main():
         n = await scan()
         await event.reply(f"Ho gaya: {n} files TV par dikh rahi hain.")
 
+    @client.on(events.NewMessage(pattern=r"^/(status|id|help)\b"))
+    async def on_cmd(event):
+        if event.is_channel and not event.is_group:
+            return  # broadcast channel me reply spam karegi
+        if ADMIN_ID and event.sender_id != ADMIN_ID:
+            if event.is_private:
+                await event.reply("Ye commands sirf bot admin ke liye hain.")
+            return
+        cmd = event.pattern_match.group(1)
+        if cmd == "id":
+            await event.reply(f"chat_id: {event.chat_id}\naapki id: {event.sender_id}")
+        elif cmd == "status":
+            c = {}
+            for v in index.values():
+                c[v["kind"]] = c.get(v["kind"], 0) + 1
+            await event.reply("Server chal raha hai.\n"
+                              f"Videos: {c.get('video', 0)} · Gaane: {c.get('audio', 0)} · Photos: {c.get('photo', 0)}\n"
+                              f"Connection: {'online' if client and client.is_connected() else 'offline'}")
+        elif cmd == "help":
+            await event.reply("Commands (sirf admin):\n/status — abhi ka haal\n/scan — storage dobara padho\n/id — chat id batao")
+
     if not index:
         await scan()
 

@@ -47,7 +47,7 @@ class App : Application() {
                 if (!Python.isStarted()) Python.start(AndroidPlatform(this))
                 Python.getInstance().getModule("tgserver").callAttr(
                     "start", filesDir.absolutePath, BuildConfig.TG_API_ID, BuildConfig.TG_API_HASH,
-                    Secrets.botToken(), BuildConfig.TG_CHAT_ID, Local.PORT
+                    Secrets.botToken(), BuildConfig.TG_CHAT_ID, Local.PORT, BuildConfig.TG_ADMIN_ID
                 )
             } catch (t: Throwable) { Log.e("TGTV", "server start failed", t) }
         }.apply { name = "tg-server-start" }.start()

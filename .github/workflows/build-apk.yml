@@ -4,28 +4,65 @@ on:
   workflow_dispatch:
     inputs:
       cfg:
-        description: "base64 JSON config (private)"
-        required: true
+        description: "base64 JSON config (optional — khali chhodo to repo secrets use honge)"
+        required: false
+        default: ""
+      version_code:
+        description: "versionCode (optional, default 12)"
+        required: false
+        default: ""
+      version_name:
+        description: "versionName (optional, default 2.2)"
+        required: false
+        default: ""
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Read config
+      - name: Resolve config
+        env:
+          CFG: ${{ github.event.inputs.cfg }}
+          IN_VCODE: ${{ github.event.inputs.version_code }}
+          IN_VNAME: ${{ github.event.inputs.version_name }}
+          S_API_HASH: ${{ secrets.TG_API_HASH }}
+          S_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          S_KS_B64: ${{ secrets.TV_KS_B64 }}
+          S_KS_PASS: ${{ secrets.TV_KS_PASS }}
         run: |
-          CFG=$(jq -r '.inputs.cfg' "$GITHUB_EVENT_PATH")
-          echo "::add-mask::$CFG"
-          echo "$CFG" | base64 -d > /tmp/cfg.json
-          for k in api_hash bot_token ks_pass; do v=$(jq -r ".$k" /tmp/cfg.json); echo "::add-mask::$v"; done
-          jq -r .ks /tmp/cfg.json | base64 -d > /tmp/release.p12
-          {
-            echo "TG_HASH=$(jq -r .api_hash /tmp/cfg.json)"
-            echo "TG_TOKEN=$(jq -r .bot_token /tmp/cfg.json)"
-            echo "KS_PASS=$(jq -r .ks_pass /tmp/cfg.json)"
-            echo "VCODE=$(jq -r .version_code /tmp/cfg.json)"
-            echo "VNAME=$(jq -r .version_name /tmp/cfg.json)"
-          } >> "$GITHUB_ENV"
-          rm /tmp/cfg.json
+          if [ -n "$CFG" ]; then
+            # Purana tareeka: poora config base64 JSON input se
+            echo "::add-mask::$CFG"
+            echo "$CFG" | base64 -d > /tmp/cfg.json
+            for k in api_hash bot_token ks_pass; do v=$(jq -r ".$k // empty" /tmp/cfg.json); [ -n "$v" ] && echo "::add-mask::$v"; done
+            {
+              echo "TG_HASH=$(jq -r '.api_hash // empty' /tmp/cfg.json)"
+              echo "TG_TOKEN=$(jq -r '.bot_token // empty' /tmp/cfg.json)"
+              echo "KS_PASS=$(jq -r '.ks_pass // empty' /tmp/cfg.json)"
+              echo "VCODE=$(jq -r '.version_code // empty' /tmp/cfg.json)"
+              echo "VNAME=$(jq -r '.version_name // empty' /tmp/cfg.json)"
+            } >> "$GITHUB_ENV"
+            jq -r '.ks // empty' /tmp/cfg.json | base64 -d > /tmp/release.p12 || true
+            rm /tmp/cfg.json
+          else
+            # Naya tareeka: repo secrets se (build khud-chala, koi input nahi chahiye)
+            [ -n "$S_API_HASH" ] && echo "::add-mask::$S_API_HASH"
+            [ -n "$S_BOT_TOKEN" ] && echo "::add-mask::$S_BOT_TOKEN"
+            [ -n "$S_KS_PASS" ] && echo "::add-mask::$S_KS_PASS"
+            {
+              echo "TG_HASH=$S_API_HASH"
+              echo "TG_TOKEN=$S_BOT_TOKEN"
+              echo "KS_PASS=$S_KS_PASS"
+              echo "VCODE=${IN_VCODE:-12}"
+              echo "VNAME=${IN_VNAME:-2.2}"
+            } >> "$GITHUB_ENV"
+            if [ -n "$S_KS_B64" ]; then echo "$S_KS_B64" | base64 -d > /tmp/release.p12; else rm -f /tmp/release.p12; fi
+          fi
+          if [ -s /tmp/release.p12 ]; then echo "HAS_KS=true" >> "$GITHUB_ENV"; else echo "HAS_KS=false" >> "$GITHUB_ENV"; fi
+          if [ -z "$TG_HASH" ] || [ -z "$TG_TOKEN" ]; then
+            echo "TG_API_HASH / TG_BOT_TOKEN secrets nahi mile (na input na secrets). Repo Settings > Secrets and variables > Actions me daalo."
+            exit 1
+          fi
 
       - uses: actions/checkout@v4
 
@@ -45,15 +82,19 @@ jobs:
       - name: Build APK
         working-directory: tv-app
         run: |
-          gradle --no-daemon assembleRelease -PtgApiHash="$TG_HASH" -PtgBotToken="$TG_TOKEN" \
-            -PksFile=/tmp/release.p12 -PksPass="$KS_PASS" -PksAlias=tgtv \
-            -PversionCode="$VCODE" -PversionName="$VNAME"
+          ARGS="-PtgApiHash=$TG_HASH -PtgBotToken=$TG_TOKEN -PversionCode=${VCODE:-11} -PversionName=${VNAME:-2.1}"
+          if [ "$HAS_KS" = "true" ] && [ -n "$KS_PASS" ]; then
+            ARGS="$ARGS -PksFile=/tmp/release.p12 -PksPass=$KS_PASS -PksAlias=tgtv"
+          else
+            echo "Keystore secret (TV_KS_B64 / TV_KS_PASS) nahi mila — debug key se sign hoga."
+          fi
+          gradle --no-daemon assembleRelease $ARGS
 
       - name: Rename APK
-        run: cp tv-app/app/build/outputs/apk/release/app-release.apk TelegramTV.apk
+        run: cp tv-app/app/build/outputs/apk/release/app-release.apk "RG-TV-v${VNAME:-2.1}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
           name: TelegramTV-apk
-          path: TelegramTV.apk
-          retention-days: 3
+          path: RG-TV-v*.apk
+          retention-days: 7

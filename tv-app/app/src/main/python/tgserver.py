@@ -64,9 +64,13 @@ CHUNK = 512 * 1024
 PARALLEL = 4
 VIDEO_EXT = (".mkv", ".mp4", ".avi", ".webm", ".ts", ".mov", ".m4v", ".flv")
 AUDIO_EXT = (".mp3", ".m4a", ".flac", ".ogg", ".opus", ".wav", ".aac")
+# Telegram bots 2GB se badi file download nahi kar sakte (premium user session chahiye).
+# Isse badi files index me "big" mark hoti hain: app unhe dikhata hai par clear message deta hai.
+BOT_DL_LIMIT = 2000 * 1024 * 1024
 
 state = {"ready": False, "error": "", "scanning": False, "scanned": 0, "version": 0,
          "title": "", "update": None, "speed": 0, "online": True, "channelError": ""}
+BOOT_TS = 0.0
 _speed = {"t": 0.0, "n": 0}
 index = {}
 client = None
@@ -192,6 +196,7 @@ def add(m):
         "id": m.id, "kind": k, "title": title, "fileName": fname,
         "mime": (f.mime_type or "") if f else "image/jpeg",
         "size": (f.size or 0) if f else 0,
+        "big": bool(f and k == "video" and (f.size or 0) > BOT_DL_LIMIT),
         "duration": int(f.duration or 0) if f and k in ("video", "audio") else 0,
         "width": (f.width or 0) if f and k in ("video", "photo") else 0,
         "height": (f.height or 0) if f and k in ("video", "photo") else 0,
@@ -425,7 +430,9 @@ async def handle(reader, writer):
 
 
 async def _main():
-    global client, group
+    global client, group, BOOT_TS
+    import time
+    BOOT_TS = time.time()
     sess_file = _p("bot.session.txt")
     sess = open(sess_file).read().strip() if os.path.exists(sess_file) else ""
     client = TelegramClient(StringSession(sess), cfg["api_id"], cfg["api_hash"])
@@ -468,6 +475,45 @@ async def _main():
         state["version"] += 1
         save_index()
 
+    # ---- bot admin commands (sirf admin ke liye, bina login sab kuch bot se chalta hai) ----
+    @client.on(events.NewMessage(pattern=r"^/(status|scan|id|help)\b"))
+    async def on_cmd(event):
+        if event.is_channel and not event.is_group:
+            return  # broadcast channel me bot ki reply spam karegi, wahan ignore karo
+        if not cfg.get("admin_id") or event.sender_id != cfg["admin_id"]:
+            if event.is_private:
+                await event.reply("Ye commands sirf bot admin ke liye hain.")
+            return
+        cmd = event.pattern_match.group(1)
+        if cmd == "id":
+            await event.reply(f"chat_id: {event.chat_id}\naapki id: {event.sender_id}")
+        elif cmd == "status":
+            import time
+            up = int(time.time() - BOOT_TS) if BOOT_TS else 0
+            c = {}
+            for v in index.values():
+                c[v["kind"]] = c.get(v["kind"], 0) + 1
+            big = sum(1 for v in index.values() if v.get("big"))
+            lines = [f"{state['title'] or 'Storage'} — status",
+                     f"Videos: {c.get('video', 0)} · Gaane: {c.get('audio', 0)} · Photos: {c.get('photo', 0)} · Subs: {c.get('sub', 0)}"]
+            if big:
+                lines.append(f"⚠ 2GB+ files: {big} (bot inhe nahi chala sakta, Telegram limit)")
+            lines.append(f"Connection: {'online' if client and client.is_connected() else 'offline'} · Uptime: {up // 3600}h {(up % 3600) // 60}m")
+            upd = state.get("update")
+            if upd:
+                lines.append(f"Update post mila: v{upd['name']}")
+            await event.reply("\n".join(lines))
+        elif cmd == "scan":
+            await event.reply("Storage dobara padh raha hoon…")
+            await scan()
+            c = {}
+            for v in index.values():
+                c[v["kind"]] = c.get(v["kind"], 0) + 1
+            await event.reply(f"Ho gaya: {len(index)} files (video {c.get('video', 0)} · gaana {c.get('audio', 0)} · photo {c.get('photo', 0)})" +
+                              (f" · channelError: {state['channelError']}" if state["channelError"] else ""))
+        elif cmd == "help":
+            await event.reply("Commands (sirf admin):\n/status — abhi ka haal\n/scan — storage dobara padho\n/id — chat id batao")
+
     srv = await asyncio.start_server(handle, "127.0.0.1", cfg["port"])
     if not index:
         await scan()
@@ -494,10 +540,11 @@ def _run():
         time.sleep(5)  # net gaya to dobara try
 
 
-def start(files_dir, api_id, api_hash, bot_token, group_id, port):
+def start(files_dir, api_id, api_hash, bot_token, group_id, port, admin_id=0):
     """Kotlin se call hota hai. Background thread me server chalata hai."""
     if cfg:
         return
     cfg.update(dir=str(files_dir), api_id=int(api_id), api_hash=str(api_hash),
-               bot_token=str(bot_token), group_id=int(group_id), port=int(port))
+               bot_token=str(bot_token), group_id=int(group_id), port=int(port),
+               admin_id=int(admin_id or 0))
     threading.Thread(target=_run, daemon=True).start()

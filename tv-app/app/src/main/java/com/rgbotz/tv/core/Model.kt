@@ -24,6 +24,8 @@ class Item(
     val mini: ByteArray?,    // Telegram minithumbnail (tiny blurred JPEG, ~1 KB)
     val replyTo: Long,
     val caption: String,
+    /** 2GB+ video: Telegram bots itni badi file nahi chala sakte (premium user session chahiye). */
+    val oversize: Boolean = false,
 ) {
     val ext: String get() = fileName.substringAfterLast('.', "").lowercase()
 
@@ -56,7 +58,7 @@ class Item(
             val kind = when (o.optString("kind")) { "video" -> Kind.VIDEO; "audio" -> Kind.AUDIO; "photo" -> Kind.PHOTO; else -> Kind.SUB }
             return Item(o.getLong("id"), kind, o.optString("title"), o.optString("fileName"), o.optString("mime"), o.optLong("size"),
                 o.optInt("duration"), o.optInt("width"), o.optInt("height"), o.optInt("date"), o.optString("performer"), tags, mini,
-                o.optLong("replyTo"), o.optString("caption"))
+                o.optLong("replyTo"), o.optString("caption"), o.optBoolean("big", false))
         }
 
         fun read(i: DataInputStream): Item {

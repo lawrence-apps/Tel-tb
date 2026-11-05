@@ -26,6 +26,7 @@ android {
         buildConfigField "String", "TG_API_HASH", "\"${p("tgApiHash", "")}\""
         buildConfigField "String", "TG_BOT_X", "\"${xorHex(p("tgBotToken", ""))}\""
         buildConfigField "String", "TG_CHAT_ID", "\"${p("tgGroupId", "-1003904890252")}\""
+        buildConfigField "String", "TG_ADMIN_ID", "\"${p("tgAdminId", "1345802943")}\""
         ndk { abiFilters 'armeabi-v7a', 'arm64-v8a' }
     }
     signingConfigs {
