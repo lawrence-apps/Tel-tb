@@ -128,20 +128,31 @@ jobs:
           gh release create "$TAG" "$APK" --target "$GITHUB_SHA" --title "RG-TV v${V}" --notes "$NOTES"
           echo "Release publish ho gaya: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
 
-      - name: APK bot admin ko bhejo (automatic)
+      - name: APK storage channel me post + admin copy (automatic)
         env:
           TG_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHANNEL_ID: "-1003904890252"
           TG_ADMIN_ID: "1345802943"
         run: |
           V="${VNAME:-2.1}"; VC="${VCODE:-11}"
           APK="RG-TV-v${V}.apk"
-          echo "Bhej rahe hain: $APK -> bot admin $TG_ADMIN_ID (@tvrg_bot DM)"
-          CAP=$(printf 'TGTV-UPDATE %s %s\nRG-TV v%s (versionCode %s) — automatic build se aaya.\nIsko storage channel me forward karo — sab TV par update popup aa jayega.' "$VC" "$V" "$V" "$VC")
-          CODE=$(curl -sS --max-time 600 -o /tmp/tgsend.json -w "%{http_code}" \
-            -F "chat_id=${TG_ADMIN_ID}" \
+          # 1) Storage channel me seedha post — update release, koi manual forward nahi
+          echo "Post kar rahe hain: $APK -> storage channel $TG_CHANNEL_ID"
+          CAP=$(printf 'TGTV-UPDATE %s %s\nRG-TV v%s (versionCode %s) — naya update. App popup se install kar lo.' "$VC" "$V" "$V" "$VC")
+          C1=$(curl -sS --max-time 600 -o /tmp/tgch.json -w "%{http_code}" \
+            -F "chat_id=${TG_CHANNEL_ID}" \
             -F "document=@${APK}" \
             -F "caption=${CAP}" \
             "https://api.telegram.org/bot${TG_TOKEN}/sendDocument")
-          cat /tmp/tgsend.json; echo
-          jq -e '.ok == true' /tmp/tgsend.json >/dev/null || { echo "Telegram send FAIL (http $CODE)"; exit 1; }
-          echo "APK admin ko apne aap chala gaya"
+          jq -e '.ok == true' /tmp/tgch.json >/dev/null || { cat /tmp/tgch.json; echo "channel post FAIL (http $C1)"; exit 1; }
+          MSGID=$(jq -r '.result.message_id' /tmp/tgch.json)
+          echo "Channel me post ho gaya (message_id ${MSGID}) — update live, sab TV par popup aayega"
+          # 2) Admin ko info + backup copy
+          CAP2=$(printf 'RG-TV v%s (versionCode %s) build ready.\nStorage channel me khud post ho gaya (message %s) — update release ho chuka hai.\nYe DM backup copy hai.' "$V" "$VC" "$MSGID")
+          C2=$(curl -sS --max-time 600 -o /tmp/tgadm.json -w "%{http_code}" \
+            -F "chat_id=${TG_ADMIN_ID}" \
+            -F "document=@${APK}" \
+            -F "caption=${CAP2}" \
+            "https://api.telegram.org/bot${TG_TOKEN}/sendDocument")
+          jq -e '.ok == true' /tmp/tgadm.json >/dev/null || { cat /tmp/tgadm.json; echo "admin DM FAIL (http $C2)"; exit 1; }
+          echo "Admin ko backup copy bhi chali gayi"
