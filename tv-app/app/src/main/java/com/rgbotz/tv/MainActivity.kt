@@ -39,10 +39,14 @@ class MainActivity : BaseActivity() {
         findViewById<View>(R.id.tileMusic).setOnClickListener { startActivity(Intent(this, MusicActivity::class.java)) }
         findViewById<View>(R.id.tilePhotos).setOnClickListener { Nav.browse(this, "photos") }
         findViewById<View>(R.id.tileTV).setOnClickListener { startActivity(Intent(this, LiveTvActivity::class.java)) }
+        findViewById<View>(R.id.chipRefresh).setOnClickListener {
+            android.widget.Toast.makeText(this, "⟳ Storage refresh ho raha hai…", android.widget.Toast.LENGTH_SHORT).show()
+            app.refreshSoon()
+        }
         findViewById<View>(R.id.chipSearch).setOnClickListener { Nav.browse(this, "search") }
         findViewById<View>(R.id.chipFolders).setOnClickListener { Nav.browse(this, "folders") }
         findViewById<View>(R.id.chipSettings).setOnClickListener { startActivity(Intent(this, SettingsActivity::class.java)) }
-        listOf(R.id.chipSearch, R.id.chipFolders, R.id.chipSettings).forEach { Focus.grow(findViewById(it), 1.06f) }
+        listOf(R.id.chipRefresh, R.id.chipSearch, R.id.chipFolders, R.id.chipSettings).forEach { Focus.grow(findViewById(it), 1.06f) }
         findViewById<View>(R.id.tileVideos).requestFocus()
     }
 

@@ -177,6 +177,19 @@ def add(m):
     return True
 
 
+async def periodic_rescan():
+    # Har 15 min me ek light dobara-scan: live event miss ho jaye (net gaya tha) ya kisi ne
+    # channel se kuch add/remove kiya ho, to ye bhi pakad lega. App ka poll version badalne
+    # par list khud refresh kar leta hai.
+    while True:
+        await asyncio.sleep(900)
+        try:
+            if not state["scanning"]:
+                await scan()
+        except Exception:
+            pass
+
+
 async def scan():
     if state["scanning"]:
         return
@@ -504,6 +517,7 @@ async def main():
         await scan()
     else:
         asyncio.ensure_future(scan())
+    asyncio.ensure_future(periodic_rescan())
     state["ready"] = True
     state["error"] = ""
     await client.run_until_disconnected()

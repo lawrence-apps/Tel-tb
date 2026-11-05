@@ -39,6 +39,12 @@ class BrowseActivity : BaseActivity() {
         sub = findViewById(R.id.sub)
         empty = findViewById(R.id.empty)
         search = findViewById(R.id.search)
+        // Top bar me Refresh — Telegram storage me kuch add/remove ho to yahin se turant scan
+        findViewById<View>(R.id.chipRefresh).setOnClickListener {
+            android.widget.Toast.makeText(this, "⟳ Storage refresh ho raha hai…", android.widget.Toast.LENGTH_SHORT).show()
+            app.refreshSoon()
+        }
+        Focus.grow(findViewById(R.id.chipRefresh), 1.06f)
         grid.itemAnimator = null
         val cols = when (mode) { "photos" -> 5; else -> 4 }
         grid.layoutManager = GridLayoutManager(this, cols)

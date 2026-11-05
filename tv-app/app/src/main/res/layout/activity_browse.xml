@@ -5,6 +5,10 @@
         <TextView android:id="@+id/title" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="24sp"/>
         <TextView android:id="@+id/sub" style="@style/T.Sub" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
             android:layout_marginStart="12dp" android:layout_marginBottom="3dp" android:textSize="12sp" android:maxLines="1"/>
+        <TextView android:id="@+id/chipRefresh" style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginEnd="14dp" android:layout_marginBottom="2dp" android:background="@drawable/chip_bg" android:drawableStart="@drawable/ic_restart"
+            android:drawablePadding="6dp" android:paddingStart="12dp" android:paddingEnd="14dp" android:paddingTop="5dp" android:paddingBottom="5dp"
+            android:gravity="center_vertical" android:text="Refresh" android:textSize="12sp" android:focusable="true" android:clickable="true"/>
         <TextClock style="@style/T.B" android:layout_width="wrap_content" android:layout_height="wrap_content" android:format12Hour="h:mm" android:format24Hour="HH:mm" android:textSize="14sp"/>
     </LinearLayout>
     <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:layout_marginTop="62dp" android:orientation="vertical">
