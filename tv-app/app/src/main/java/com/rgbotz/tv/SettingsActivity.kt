@@ -69,7 +69,7 @@ class SettingsActivity : BaseActivity() {
         val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad / 2, pad, 0) }
         val et = EditText(this).apply {
             hint = "http://1.2.3.4:8080"
-            singleLine = true
+            setSingleLine(true)
             setText(app.prefs.serverUrl)
         }
         box.addView(et)
