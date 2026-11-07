@@ -1,7 +1,7 @@
 # TV ke andar chalne wala chhota server: Telegram channel -> http://127.0.0.1:PORT
 # Kuch bhi TV storage me save nahi hota (sirf chhoti index list aur bot session).
 
-import asyncio, ctypes, json, os, re, sys, threading, types as pytypes, traceback
+import asyncio, ctypes, json, os, random, re, sys, threading, types as pytypes, traceback
 
 # ---------- Fast AES (OpenSSL) for Telethon, warna pure-python bahut slow hai ----------
 
@@ -57,7 +57,7 @@ def _install_fast_aes():
 
 _install_fast_aes()
 
-from telethon import TelegramClient, events, utils, types  # noqa: E402
+from telethon import TelegramClient, events, functions, utils, types  # noqa: E402
 from telethon.sessions import StringSession  # noqa: E402
 from telethon.errors import FloodWaitError  # noqa: E402
 
@@ -267,11 +267,29 @@ async def get_msg(mid):
     return m
 
 
-async def _get_chunk(doc, off, size):
+async def _purge_dc_sender(doc):
+    """Doosre DC ka cached (mar chuka) sender hatao — agla attempt fresh auth banayega.
+    Telethon dead exported sender ko cache me hi rakhta hai, jisse door DC ki file
+    kabhi-kabhi hamesha ke liye atak jaati hai (video load nahi hoti)."""
+    try:
+        dc = getattr(doc, "dc_id", 0) or 0
+        if dc and client and dc != client.session.dc_id:
+            ent = client._borrowed_senders.pop(dc, None)
+            if ent:
+                try:
+                    await ent[1].disconnect()
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+async def _get_chunk(doc, off, size, mid=0):
     """Ek CHUNK download karo, retry + reconnect ke saath.
     Pehle ek bhi chunk fail hota to poora stream hamesha ke liye mar jata tha
     (video 'load nahi hoti'). Ab har chunk 5 baar try hota hai: FloodWait ka wait,
-    transient error par reconnect + backoff — isse dheelare DC din bhi chalega."""
+    transient error par reconnect + backoff — isse dheelare DC din bhi chalega.
+    Doosre DC ka sender 2 fail par purge ho jata hai (fresh auth)."""
     last = None
     for attempt in range(5):
         try:
@@ -290,12 +308,19 @@ async def _get_chunk(doc, off, size):
                     await client.connect()
             except Exception:
                 pass
+            if attempt >= 1:
+                await _purge_dc_sender(doc)
+    if mid:
+        note_stream_fail(mid, doc)
     raise RuntimeError(f"chunk@{off} 5 baar fail: {last}")
 
 
-async def parallel_chunks(doc, offset, size):
+async def parallel_chunks(doc, offset, size, mid=0):
     total = -(-(size - offset) // CHUNK)
-    n = max(1, min(PARALLEL, total))
+    dc = getattr(doc, "dc_id", 0) or 0
+    far = bool(dc and client and dc != client.session.dc_id)
+    # door DC me latency zyada hoti hai — extra parallel streams se speed aati hai
+    n = max(1, min(6 if far else PARALLEL, total))
     start_idx = offset // CHUNK
     queues = [asyncio.Queue(maxsize=3) for _ in range(n)]
 
@@ -304,7 +329,7 @@ async def parallel_chunks(doc, offset, size):
             idx = start_idx + i
             end_idx = start_idx + total
             while idx < end_idx:
-                c = await _get_chunk(doc, idx * CHUNK, size)
+                c = await _get_chunk(doc, idx * CHUNK, size, mid)
                 await queues[i].put(c)
                 idx += n
         except Exception as e:
@@ -324,6 +349,228 @@ async def parallel_chunks(doc, offset, size):
     finally:
         for t in tasks:
             t.cancel()
+
+
+# ---------------- door-DC file self-heal (auto re-upload) ----------------
+# Koi file doosre (door) Telegram DC pe padi ho aur uska stream 2 baar mar jaye,
+# to bot KHUD uska data stream karke naye parts upload karta hai (bina disk ke —
+# 1MB chunk download -> 2x512KB part upload, ek saath). Nayi copy ghar wale DC pe
+# ban jaati hai, verify hoti hai, purani delete. TV pe wo file hamesha ke liye tez.
+
+UP_PART = 512 * 1024
+HEAL_WORKERS = 3
+heal_state = {}          # mid(int) -> {status,pct,name,new_id,err}
+_heal_queue = []
+_heal_running = False
+_fail_count = {}
+_heal_tried = set()
+
+
+def heal_path():
+    return _p("heal.json")
+
+
+def heal_load():
+    try:
+        with open(heal_path()) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def heal_save(d):
+    try:
+        tmp = str(heal_path()) + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(d, f)
+        os.replace(tmp, heal_path())
+    except Exception:
+        pass
+
+
+def queue_heal(mid, doc, force=False):
+    if not client or not doc:
+        return
+    if not force and mid in _heal_tried:
+        return
+    _heal_tried.add(mid)
+    size = getattr(doc, "size", 0) or 0
+    if size <= 0 or size > BOT_DL_LIMIT:
+        return  # 2GB+ file bot upload hi nahi kar sakta
+    dc = getattr(doc, "dc_id", 0) or 0
+    if not dc or dc == client.session.dc_id:
+        return  # ghar wale DC pe hai, heal ki zaroorat nahi
+    hs = heal_state.get(mid)
+    if hs and hs.get("status") in ("queued", "running"):
+        return
+    heal_state[mid] = {"status": "queued", "pct": 0, "name": "", "new_id": 0, "err": ""}
+    _heal_queue.append(mid)
+    asyncio.ensure_future(_heal_pump())
+
+
+def note_stream_fail(mid, doc):
+    """Stream mara to gino — 2 baar mar jaye to self-heal shuru."""
+    try:
+        _fail_count[mid] = _fail_count.get(mid, 0) + 1
+        if _fail_count[mid] >= 2:
+            queue_heal(mid, doc)
+    except Exception:
+        pass
+
+
+def resume_heals():
+    """Boot par: pichle adhoore heal wapas shuru karo (app band ho gaya tha)."""
+    try:
+        for mid, rs in heal_load().items():
+            mid = int(mid)
+            _heal_tried.add(mid)
+            heal_state[mid] = {"status": "queued", "pct": 0, "name": rs.get("name", ""),
+                               "new_id": 0, "err": ""}
+            _heal_queue.append(mid)
+        if _heal_queue:
+            asyncio.ensure_future(_heal_pump())
+    except Exception:
+        pass
+
+
+async def _heal_pump():
+    global _heal_running
+    if _heal_running:
+        return
+    _heal_running = True
+    try:
+        while _heal_queue:
+            mid = _heal_queue.pop(0)
+            try:
+                await _heal_run(mid)
+            except Exception as e:
+                hs = heal_state.get(mid) or {"pct": 0, "name": "", "new_id": 0}
+                hs.update(status="failed", err=f"{type(e).__name__}: {str(e)[:80]}")
+                heal_state[mid] = hs
+    finally:
+        _heal_running = False
+
+
+async def _heal_run(mid):
+    m = await client.get_messages(group, ids=mid)
+    if not m or not m.document:
+        heal_state.pop(mid, None)
+        return
+    doc = m.document
+    size = doc.size
+    heal_state[mid] = {"status": "running", "pct": 0, "name": (m.file.name or "")[:60],
+                       "new_id": 0, "err": ""}
+    rs = heal_load().get(str(mid), {})
+    fid = rs.get("file_id") or random.randrange(1, 2 ** 63)
+    parts_total = -(-size // UP_PART)
+    ul_done = set(rs.get("ul_done", []))
+    if rs.get("size") != size:
+        ul_done = set()
+    CH = 2 * UP_PART  # 1MB download -> 2 part upload
+    nchunks = -(-size // CH)
+    todo_c = [c for c in range(nchunks)
+              if any(p not in ul_done for p in range(2 * c, min(2 * c + 2, parts_total)))]
+    lock = asyncio.Lock()
+    stop = asyncio.Event()
+
+    async def work(wid):
+        while True:
+            async with lock:
+                if stop.is_set() or not todo_c:
+                    return
+                cidx = todo_c.pop(0)
+            off = cidx * CH
+            data = None
+            for att in range(6):
+                try:
+                    buf = bytearray()
+                    async for c in client.iter_download(doc, offset=off, request_size=CH,
+                                                        limit=1, file_size=size):
+                        buf += c
+                    data = bytes(buf)
+                    break
+                except FloodWaitError as e:
+                    await asyncio.sleep(min(e.seconds + 1, 120))
+                except Exception:
+                    if att >= 1:
+                        await _purge_dc_sender(doc)
+                    await asyncio.sleep(min(2.0 ** att, 10.0))
+            if not data:
+                stop.set()
+                heal_state[mid]["err"] = f"download chunk {cidx} fail"
+                return
+            for p in range(2 * cidx, min(2 * cidx + 2, parts_total)):
+                if p in ul_done:
+                    continue
+                seg = data[p * UP_PART - off: p * UP_PART - off + UP_PART]
+                for att in range(4):
+                    try:
+                        await client(functions.upload.SaveBigFilePartRequest(fid, p, parts_total, seg))
+                        break
+                    except FloodWaitError as e:
+                        await asyncio.sleep(min(e.seconds + 1, 120))
+                    except Exception:
+                        await asyncio.sleep(min(2.0 ** att, 8.0))
+                else:
+                    stop.set()
+                    heal_state[mid]["err"] = f"upload part {p} fail"
+                    return
+                async with lock:
+                    ul_done.add(p)
+                    heal_state[mid]["pct"] = int(len(ul_done) * 100 / parts_total)
+                    if len(ul_done) % 20 == 0 or len(ul_done) == parts_total:
+                        heal_save({str(mid): {"file_id": fid, "size": size,
+                                              "ul_done": sorted(ul_done)}})
+
+    await asyncio.gather(*[work(i) for i in range(HEAL_WORKERS)])
+    if stop.is_set():
+        heal_state[mid]["status"] = "failed"
+        return
+    # sab parts upload ho gaye — ab asli caption/attributes ke saath message bhejo
+    m = await client.get_messages(group, ids=mid)
+    if not m or not m.document:
+        heal_state[mid]["status"] = "failed"
+        heal_state[mid]["err"] = "source message gayab"
+        return
+    d2 = m.document
+    fname = next((a.file_name for a in d2.attributes
+                  if isinstance(a, types.DocumentAttributeFilename)), "video.mkv")
+    attrs = list(d2.attributes)  # filename attr bhi saath jaye (InputFileBig ka name kaafi nahi hota)
+    r = await client(functions.messages.SendMediaRequest(
+        group, types.InputMediaUploadedDocument(
+            file=types.InputFileBig(fid, parts_total, fname),
+            mime_type=d2.mime_type or "video/mp4",
+            attributes=attrs, force_file=True),
+        message=m.message or "", random_id=random.randrange(1, 2 ** 63)))
+    new_id = 0
+    for u in (getattr(r, "updates", None) or []):
+        if isinstance(u, (types.UpdateNewChannelMessage, types.UpdateNewMessage)):
+            new_id = u.message.id
+    if not new_id:
+        raise RuntimeError("nayi message id nahi mili")
+    ok = False
+    m2 = await client.get_messages(group, ids=new_id)
+    if m2 and m2.document:
+        try:
+            async for _c in client.iter_download(m2.document, offset=0, request_size=UP_PART,
+                                                 limit=1, file_size=m2.document.size):
+                pass
+            ok = True
+        except Exception:
+            ok = False
+    if ok:
+        try:
+            await client.delete_messages(group, [mid])
+        except Exception:
+            pass
+        heal_state[mid] = {"status": "done", "pct": 100, "name": heal_state[mid].get("name", ""),
+                           "new_id": new_id, "err": ""}
+        d = heal_load()
+        d.pop(str(mid), None)
+        heal_save(d)
+    else:
+        heal_state[mid]["status"] = "failed"
+        heal_state[mid]["err"] = "nayi copy verify fail"
 
 
 def _count(n):
@@ -399,6 +646,7 @@ async def handle(reader, writer):
             if time.time() - _speed.get("last", 0) > 3:
                 state["speed"] = 0
             state["online"] = bool(client and client.is_connected())
+            state["heal"] = {str(k): v for k, v in heal_state.items()}
             body = json.dumps({**state, "count": len(index)}).encode()
             return await _send(writer, 200, body, "application/json")
         if path == "/api/list":
@@ -451,7 +699,7 @@ async def handle(reader, writer):
         aligned = start - (start % CHUNK)
         skip = start - aligned
         remaining = length
-        async for chunk in parallel_chunks(m.document, aligned, size):
+        async for chunk in parallel_chunks(m.document, aligned, size, mid=m.id):
             if skip:
                 chunk, skip = chunk[skip:], 0
             chunk = chunk[:remaining]
@@ -490,6 +738,7 @@ async def _main():
         group = types.InputPeerChannel(real_id, 0)
 
     load_index()
+    resume_heals()
     try:
         ent = await client.get_entity(group)
         state["title"] = getattr(ent, "title", "") or state["title"]
@@ -545,6 +794,9 @@ async def _main():
             upd = state.get("update")
             if upd:
                 lines.append(f"Update post mila: v{upd['name']}")
+            hh = [v for v in heal_state.values() if v.get("status") in ("queued", "running")]
+            if hh:
+                lines.append(f"🛠 Self-heal: {hh[0].get('name') or 'file'} — {hh[0].get('pct', 0)}%")
             await event.reply("\n".join(lines))
         elif cmd == "scan":
             await event.reply("Storage dobara padh raha hoon…")
