@@ -59,6 +59,7 @@ _install_fast_aes()
 
 from telethon import TelegramClient, events, utils, types  # noqa: E402
 from telethon.sessions import StringSession  # noqa: E402
+from telethon.errors import FloodWaitError  # noqa: E402
 
 CHUNK = 512 * 1024
 PARALLEL = 4
@@ -266,17 +267,46 @@ async def get_msg(mid):
     return m
 
 
+async def _get_chunk(doc, off, size):
+    """Ek CHUNK download karo, retry + reconnect ke saath.
+    Pehle ek bhi chunk fail hota to poora stream hamesha ke liye mar jata tha
+    (video 'load nahi hoti'). Ab har chunk 5 baar try hota hai: FloodWait ka wait,
+    transient error par reconnect + backoff — isse dheelare DC din bhi chalega."""
+    last = None
+    for attempt in range(5):
+        try:
+            async for c in client.iter_download(doc, offset=off, request_size=CHUNK,
+                                                limit=1, file_size=size):
+                return bytes(c)
+            return b""
+        except FloodWaitError as e:
+            last = e
+            await asyncio.sleep(min(float(e.seconds + 1), 60.0))
+        except Exception as e:
+            last = e
+            await asyncio.sleep(min(2.0 ** attempt, 10.0))
+            try:
+                if not client.is_connected():
+                    await client.connect()
+            except Exception:
+                pass
+    raise RuntimeError(f"chunk@{off} 5 baar fail: {last}")
+
+
 async def parallel_chunks(doc, offset, size):
     total = -(-(size - offset) // CHUNK)
     n = max(1, min(PARALLEL, total))
+    start_idx = offset // CHUNK
     queues = [asyncio.Queue(maxsize=3) for _ in range(n)]
 
     async def worker(i):
         try:
-            async for c in client.iter_download(doc, offset=offset + i * CHUNK,
-                                                stride=n * CHUNK, request_size=CHUNK,
-                                                limit=-(-(total - i) // n), file_size=size):
-                await queues[i].put(bytes(c))
+            idx = start_idx + i
+            end_idx = start_idx + total
+            while idx < end_idx:
+                c = await _get_chunk(doc, idx * CHUNK, size)
+                await queues[i].put(c)
+                idx += n
         except Exception as e:
             print("tgserver download error:", e)
         finally:

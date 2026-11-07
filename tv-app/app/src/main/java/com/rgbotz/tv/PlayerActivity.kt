@@ -72,6 +72,35 @@ class PlayerActivity : BaseActivity() {
         override fun run() { savePos(); h.postDelayed(this, 5000) }
     }
 
+    // ---- Stall watchdog: buffering atak gayi (dheelara DC / mara hua chunk) to khud unstick karo ----
+    private var stallSince = 0L
+    private val stallWatch = object : Runnable {
+        override fun run() {
+            val p = player ?: return
+            if (p.playbackState != Player.STATE_BUFFERING || !p.playWhenReady) { stallSince = 0L; return }
+            val stuck = System.currentTimeMillis() - stallSince
+            if (stuck >= 55_000) {
+                // 55s tak kuch nahi badha — stream poora reset, wahi position se (naye sire se HTTP)
+                val pos = p.currentPosition
+                stallSince = 0L
+                h.removeCallbacks(this)
+                start(item, pos)
+                return
+            }
+            // 25s par: wahi par re-seek — request naye sire se jaati hai, atka hua chunk bypass ho jata hai
+            p.seekTo(p.currentPosition)
+            h.postDelayed(this, 25_000)
+        }
+    }
+
+    private fun armStallWatch() {
+        val p = player ?: return
+        if (p.playbackState == Player.STATE_BUFFERING && p.playWhenReady && stallSince == 0L) {
+            stallSince = System.currentTimeMillis()
+            h.postDelayed(stallWatch, 25_000)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -141,12 +170,19 @@ class PlayerActivity : BaseActivity() {
             override fun onPlaybackStateChanged(state: Int) {
                 lc.onState(prevState, state, p.playWhenReady); prevState = state
                 loading.visibility = if (state == Player.STATE_BUFFERING) View.VISIBLE else View.GONE
-                if (state == Player.STATE_BUFFERING) updateLoading()
+                if (state == Player.STATE_BUFFERING) {
+                    updateLoading()
+                    armStallWatch()
+                } else {
+                    stallSince = 0L
+                    h.removeCallbacks(stallWatch)
+                }
                 if (state == Player.STATE_ENDED) { app.prefs.clearPos(item.id); playNext() }
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 btnPlay.setImageResource(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
                 if (isPlaying) poke() else { h.removeCallbacks(hideControls) }
+                armStallWatch()
             }
             override fun onPlayerError(error: PlaybackException) {
                 loading.visibility = View.GONE
@@ -163,9 +199,11 @@ class PlayerActivity : BaseActivity() {
         return p
     }
 
-    private fun start(it: Item) {
+    private fun start(it: Item, startPos: Long = -1L) {
         item = it
         firstTracks = true
+        stallSince = 0L
+        h.removeCallbacks(stallWatch)
         findViewById<TextView>(R.id.title).text = it.title
         findViewById<TextView>(R.id.meta).text = (listOf(it.quality, Fmt.size(it.size), Fmt.dur(it.duration.toLong())).filter { s -> s.isNotEmpty() } +
                 if (it.oversize) listOf("2GB+") else emptyList()).joinToString(" · ")
@@ -185,7 +223,15 @@ class PlayerActivity : BaseActivity() {
         // remember the file so we can delete its temp parts when leaving
         val saved = app.prefs.pos(it.id)
         val dur = app.prefs.dur(it.id)
-        if (saved > 15_000 && (dur <= 0 || saved < dur - 30_000)) {
+        if (startPos >= 0) {
+            // stall-watchdog ka reset: wahi position se turant chalao
+            p.seekTo(startPos)
+            p.playWhenReady = true
+            p.prepare()
+            controls.visibility = View.VISIBLE
+            btnPlay.requestFocus()
+            poke()
+        } else if (saved > 15_000 && (dur <= 0 || saved < dur - 30_000)) {
             p.seekTo(saved)
             p.playWhenReady = false
             p.prepare()
